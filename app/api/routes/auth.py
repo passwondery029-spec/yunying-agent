@@ -22,6 +22,37 @@ async def get_me(user: TokenData = Depends(require_auth)):
     }
 
 
+@router.post("/guest", response_model=TokenResponse)
+async def guest_login():
+    """访客自动登录：无需注册，自动创建访客账号"""
+    try:
+        import time as _time
+        guest_id = f"guest_{secrets.token_hex(4)}"
+        # 用时间戳生成唯一用户名
+        username = f"访客{_time.time_ns() % 1000000}"
+        user = await user_store.create_user(
+            username=username,
+            password=secrets.token_hex(16),  # 随机密码，访客不需要知道
+            nickname="访客",
+        )
+        if user is None:
+            # 极小概率冲突，重试
+            username = f"访客{_time.time_ns() % 10000000}"
+            user = await user_store.create_user(
+                username=username,
+                password=secrets.token_hex(16),
+                nickname="访客",
+            )
+        if user is None:
+            raise HTTPException(status_code=500, detail="创建访客账号失败")
+        return create_token_pair(user["user_id"], user["username"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"访客登录失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="访客登录失败，请稍后重试")
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(body: UserCreate):
     """用户注册"""

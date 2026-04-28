@@ -504,103 +504,43 @@
     const API_BASE = window.location.origin;
     let authToken = localStorage.getItem('yunying_token') || '';
     let isSending = false;
-    let authMode = 'login'; // 'login' | 'register'
 
-    // ========== 自动恢复登录 ==========
-    (async function autoLogin() {
-      if (!authToken) return;
+    // ========== 访客自动登录 ==========
+    (async function autoGuestLogin() {
+      // 如果已有token，先验证是否有效
+      if (authToken) {
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+          });
+          if (res.ok) {
+            showApp();
+            return;
+          }
+        } catch (e) {}
+        // token失效，清除
+        authToken = '';
+        localStorage.removeItem('yunying_token');
+      }
+
+      // 访客自动登录
       try {
-        const res = await fetch(`${API_BASE}/api/v1/health/profile`, {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        if (res.ok) {
-          showApp();
-        } else {
-          // token过期，清除
-          authToken = '';
-          localStorage.removeItem('yunying_token');
-        }
-      } catch (e) {
-        // 网络错误不清除token，下次再试
-      }
-    })();
-
-    // ========== 认证 ==========
-
-    function switchTab(mode) {
-      authMode = mode;
-      document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
-      event.target.classList.add('active');
-      document.getElementById('nicknameGroup').style.display = mode === 'register' ? 'block' : 'none';
-      document.getElementById('loginBtn').textContent = mode === 'register' ? '注册' : '登录';
-      document.getElementById('authError').textContent = '';
-    }
-
-    async function handleAuth() {
-      const username = document.getElementById('usernameInput').value.trim();
-      const password = document.getElementById('passwordInput').value.trim();
-      const nickname = document.getElementById('nicknameInput').value.trim();
-      const errorEl = document.getElementById('authError');
-      const btn = document.getElementById('loginBtn');
-
-      if (!username || !password) {
-        errorEl.textContent = '请输入用户名和密码';
-        return;
-      }
-      if (password.length < 6) {
-        errorEl.textContent = '密码至少6位';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = '处理中...';
-      errorEl.textContent = '';
-
-      try {
-        const endpoint = authMode === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
-        const body = { username, password };
-        if (authMode === 'register' && nickname) body.nickname = nickname;
-
-        const res = await fetch(`${API_BASE}${endpoint}`, {
+        const res = await fetch(`${API_BASE}/api/v1/auth/guest`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
         });
-
-        // 先读取文本，再安全解析JSON
         const text = await res.text();
         let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          errorEl.textContent = res.status === 500 ? '服务器内部错误，请稍后重试' : `请求失败 (${res.status})`;
-          return;
+        try { data = JSON.parse(text); } catch { return; }
+        if (data.access_token) {
+          authToken = data.access_token;
+          localStorage.setItem('yunying_token', authToken);
+          showApp();
         }
-
-        if (!res.ok) {
-          let errMsg = '操作失败';
-          if (typeof data.detail === 'string') {
-            errMsg = data.detail;
-          } else if (Array.isArray(data.detail)) {
-            errMsg = data.detail.map(e => e.msg || e.message || '参数错误').join('; ');
-          } else if (data.detail && typeof data.detail === 'object') {
-            errMsg = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
-          }
-          errorEl.textContent = errMsg;
-          return;
-        }
-
-        authToken = data.access_token;
-        localStorage.setItem('yunying_token', authToken);
-        localStorage.setItem('yunying_username', username);
-        showApp();
-      } catch (err) {
-        errorEl.textContent = '连接失败: ' + err.message;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = authMode === 'register' ? '注册' : '登录';
+      } catch (e) {
+        console.error('访客登录失败:', e);
       }
-    }
+    })();
 
     function showApp() {
       document.getElementById('loginPage').style.display = 'none';
@@ -610,9 +550,9 @@
     function logout() {
       authToken = '';
       localStorage.removeItem('yunying_token');
-      document.getElementById('loginPage').style.display = 'flex';
-      document.getElementById('appPage').classList.remove('active');
       clearChat();
+      // 重新访客登录
+      location.reload();
     }
 
     // ========== 聊天 ==========
