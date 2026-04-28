@@ -1,5 +1,6 @@
 """认证API路由"""
 
+import secrets
 from fastapi import APIRouter, HTTPException, Request, Depends
 from loguru import logger
 from app.core.auth import (
