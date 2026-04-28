@@ -36,7 +36,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class UserCreate(BaseModel):
     """用户注册请求"""
-    username: str = Field(min_length=3, max_length=32, pattern=r"^[a-zA-Z0-9_\u4e00-\u9fff]+$")
+    username: str = Field(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9_.@\-_\u4e00-\u9fff]+$")
     password: str = Field(min_length=6, max_length=64)
     nickname: str | None = Field(default=None, max_length=32)
 

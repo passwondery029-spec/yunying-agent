@@ -569,7 +569,15 @@
 
         const data = await res.json();
         if (!res.ok) {
-          errorEl.textContent = data.detail || '操作失败';
+          let errMsg = '操作失败';
+          if (typeof data.detail === 'string') {
+            errMsg = data.detail;
+          } else if (Array.isArray(data.detail)) {
+            errMsg = data.detail.map(e => e.msg || e.message || '参数错误').join('; ');
+          } else if (data.detail && typeof data.detail === 'object') {
+            errMsg = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
+          }
+          errorEl.textContent = errMsg;
           return;
         }
 
