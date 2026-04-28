@@ -363,35 +363,14 @@
 </head>
 <body>
 
-  <!-- ========== 登录页 ========== -->
+  <!-- ========== 加载页（访客登录中） ========== -->
   <div class="login-page" id="loginPage">
     <div class="login-card">
       <div class="logo">🪷</div>
       <h2>云英</h2>
       <p class="subtitle">身心健康陪伴</p>
-
-      <div class="login-tabs">
-        <div class="login-tab active" onclick="switchTab('login')">登录</div>
-        <div class="login-tab" onclick="switchTab('register')">注册</div>
-      </div>
-
-      <div class="form-group" id="nicknameGroup" style="display:none">
-        <label>昵称</label>
-        <input type="text" id="nicknameInput" placeholder="你想被怎么称呼">
-      </div>
-
-      <div class="form-group">
-        <label>用户名</label>
-        <input type="text" id="usernameInput" placeholder="请输入用户名" autocomplete="username">
-      </div>
-
-      <div class="form-group">
-        <label>密码</label>
-        <input type="password" id="passwordInput" placeholder="请输入密码" autocomplete="current-password">
-      </div>
-
-      <button class="login-btn" id="loginBtn" onclick="handleAuth()">登录</button>
-      <div class="login-error" id="authError"></div>
+      <p id="authError" style="margin-top:16px;color:var(--text-secondary);font-size:14px;">正在连接...</p>
+      <button class="login-btn" id="loginBtn" onclick="retryGuestLogin()" style="display:none">重新连接</button>
     </div>
   </div>
 
@@ -506,7 +485,40 @@
     let isSending = false;
 
     // ========== 访客自动登录 ==========
-    (async function autoGuestLogin() {
+    async function doGuestLogin() {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/guest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch {
+          throw new Error('服务器响应异常');
+        }
+        if (data.access_token) {
+          authToken = data.access_token;
+          localStorage.setItem('yunying_token', authToken);
+          showApp();
+          return;
+        }
+        throw new Error(data.detail || '登录失败');
+      } catch (e) {
+        console.error('访客登录失败:', e);
+        const errorEl = document.getElementById('authError');
+        const retryBtn = document.getElementById('loginBtn');
+        if (errorEl) errorEl.textContent = '连接失败，请点击重试';
+        if (retryBtn) retryBtn.style.display = 'block';
+      }
+    }
+
+    function retryGuestLogin() {
+      document.getElementById('authError').textContent = '正在连接...';
+      document.getElementById('loginBtn').style.display = 'none';
+      doGuestLogin();
+    }
+
+    (async function autoLogin() {
       // 如果已有token，先验证是否有效
       if (authToken) {
         try {
@@ -524,22 +536,7 @@
       }
 
       // 访客自动登录
-      try {
-        const res = await fetch(`${API_BASE}/api/v1/auth/guest`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const text = await res.text();
-        let data;
-        try { data = JSON.parse(text); } catch { return; }
-        if (data.access_token) {
-          authToken = data.access_token;
-          localStorage.setItem('yunying_token', authToken);
-          showApp();
-        }
-      } catch (e) {
-        console.error('访客登录失败:', e);
-      }
+      await doGuestLogin();
     })();
 
     function showApp() {
