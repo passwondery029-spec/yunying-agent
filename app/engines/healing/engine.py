@@ -1,6 +1,7 @@
 """疗愈陪伴引擎"""
 
-from app.core.llm import chat_with_system
+from typing import AsyncGenerator
+from app.core.llm import chat_with_system, chat_stream_with_system
 from app.core.rag import rag_service
 from app.engines.healing.prompts import HEALING_ENGINE_SYSTEM_PROMPT, HEALING_SNAPSHOT_TEMPLATE
 from app.health.models import HealthMetrics, HealthEvent, UserHealthBaseline
@@ -140,3 +141,44 @@ async def healing_chat(
         temperature=0.75,  # 稍高一点，更有温度感
         max_tokens=600,    # 冥想引导需要更长
     )
+
+
+async def healing_chat_stream(
+    user_message: str,
+    user_id: str,
+    history: list[dict] | None = None,
+    healing_snapshot: str | None = None,
+    light_mode: bool = False,
+    memory_text: str = "",
+) -> AsyncGenerator[str, None]:
+    """疗愈陪伴引擎流式对话
+
+    与 healing_chat 相同逻辑，但逐 token 返回
+    """
+    system_prompt = HEALING_ENGINE_SYSTEM_PROMPT
+
+    if memory_text:
+        system_prompt += f"\n\n{memory_text}"
+
+    if healing_snapshot and healing_snapshot != "暂无用户身心数据":
+        system_prompt += f"\n\n{healing_snapshot}"
+
+    if not light_mode:
+        context_messages = history or []
+        context_messages = context_messages + [{"role": "user", "content": user_message}]
+        knowledge_section = rag_service.retrieve(
+            messages=context_messages,
+            engine_type="healing",
+            max_chars=3000 if len(context_messages) <= 4 else 4000,
+        )
+        if knowledge_section:
+            system_prompt += f"\n\n## 中医心理学参考知识\n{knowledge_section}"
+
+    async for chunk in chat_stream_with_system(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        history=history,
+        temperature=0.75,
+        max_tokens=600,
+    ):
+        yield chunk

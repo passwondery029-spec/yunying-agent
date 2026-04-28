@@ -2,8 +2,9 @@
 
 from enum import Enum
 from dataclasses import dataclass
+from typing import AsyncGenerator
 
-from app.core.llm import chat_with_system, _has_api_key
+from app.core.llm import chat_with_system, chat_stream_with_system, _has_api_key
 
 
 class Intent(str, Enum):
@@ -323,3 +324,85 @@ async def orchestrate(
         suggested_actions=[],
         product_recommendation=None,
     )
+
+
+async def orchestrate_stream(
+    user_message: str,
+    user_id: str,
+    history: list[dict] | None = None,
+    health_snapshot: str | None = None,
+    health_events: list | None = None,
+    profile=None,
+    memory_text: str = "",
+) -> AsyncGenerator[str, None]:
+    """流式调度：先意图分类（非流式），再流式生成回复
+
+    Yields:
+        文本片段
+    """
+    # 1. 意图分类（非流式，因为只需要一个词）
+    intent = await classify_intent(user_message, health_events)
+
+    # 2. 流式路由到对应引擎
+    if intent == Intent.HEALTH:
+        from app.engines.health.engine import health_chat_stream
+
+        if not health_snapshot:
+            health_snapshot = _build_health_snapshot_for_engine(
+                profile=profile, health_events=health_events,
+            )
+
+        async for chunk in health_chat_stream(
+            user_message=user_message,
+            user_id=user_id,
+            history=history,
+            health_snapshot=health_snapshot,
+            memory_text=memory_text,
+        ):
+            yield chunk
+
+    elif intent == Intent.HEALING:
+        from app.engines.healing.engine import healing_chat_stream
+
+        healing_snapshot = _build_healing_snapshot_for_engine(
+            profile=profile, health_events=health_events,
+        )
+
+        async for chunk in healing_chat_stream(
+            user_message=user_message,
+            user_id=user_id,
+            history=history,
+            healing_snapshot=healing_snapshot,
+            memory_text=memory_text,
+        ):
+            yield chunk
+
+    elif intent == Intent.PRODUCT:
+        from app.engines.product.engine import product_chat_stream
+
+        product_snapshot = _build_product_snapshot_for_engine(
+            profile=profile, health_events=health_events,
+        )
+
+        async for chunk in product_chat_stream(
+            user_message=user_message,
+            user_id=user_id,
+            history=history,
+            product_snapshot=product_snapshot,
+            memory_text=memory_text,
+        ):
+            yield chunk
+
+    else:
+        # 通用闲聊
+        from app.engines.healing.engine import healing_chat_stream
+
+        async for chunk in healing_chat_stream(
+            user_message=user_message,
+            user_id=user_id,
+            history=history,
+            healing_snapshot=None,
+            light_mode=True,
+            memory_text=memory_text,
+        ):
+            yield chunk

@@ -782,12 +782,35 @@
       input.value = '';
       input.style.height = 'auto';
       addMessage('user', text);
-      showTyping();
+
+      // 立即创建 AI 消息气泡（空内容，逐字填充）
+      const welcome = document.getElementById('welcome');
+      if (welcome) welcome.style.display = 'none';
+
+      const chatArea = document.getElementById('chatArea');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message ai';
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = '🪷';
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'msg-content';
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      contentDiv.appendChild(bubble);
+      msgDiv.appendChild(avatar);
+      msgDiv.appendChild(contentDiv);
+      chatArea.appendChild(msgDiv);
+      chatArea.scrollTop = chatArea.scrollHeight;
+
+      // 显示"正在思考..."
+      const statusEl = document.getElementById('statusText');
+      statusEl.textContent = '正在思考...';
 
       try {
         const body = { message: text, channel: 'web' };
 
-        const res = await fetch(`${API_BASE}/api/v1/chat`, {
+        const res = await fetch(`${API_BASE}/api/v1/chat/stream`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -796,34 +819,76 @@
           body: JSON.stringify(body)
         });
 
-        const resText = await res.text();
-        let data;
-        try {
-          data = JSON.parse(resText);
-        } catch {
-          addMessage('ai', `[服务器错误] 请稍后重试 (${res.status})`);
+        if (res.status === 401) {
+          bubble.textContent = '登录已过期，请刷新页面';
+          logout();
           isSending = false;
           return;
         }
 
-        if (res.status === 401) {
-          hideTyping();
-          logout();
-          return;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6);
+            try {
+              const evt = JSON.parse(jsonStr);
+
+              if (evt.text) {
+                fullText += evt.text;
+                bubble.textContent = fullText;
+                chatArea.scrollTop = chatArea.scrollHeight;
+                // 第一个 token 到达后改为"正在回复..."
+                if (fullText.length < 10) {
+                  statusEl.textContent = '正在回复...';
+                }
+              }
+
+              if (evt.done) {
+                // 流式完成，用 meta 中的 clean_reply 和 blocks 替换
+                const meta = evt.meta || {};
+                if (meta.reply) {
+                  bubble.textContent = meta.reply;
+                }
+                // 渲染结构化块
+                if (meta.blocks && meta.blocks.length > 0) {
+                  meta.blocks.forEach(block => {
+                    const el = renderBlock(block);
+                    if (el) contentDiv.appendChild(el);
+                  });
+                }
+              }
+
+              if (evt.error) {
+                bubble.textContent = `[错误] ${evt.error}`;
+              }
+            } catch (e) {
+              // 忽略解析失败的行
+            }
+          }
         }
 
-        hideTyping();
-
-        if (data.reply) {
-          addMessage('ai', data.reply, data.blocks || []);
-        } else if (data.error) {
-          addMessage('ai', `[错误] ${data.error}`);
+        // 如果什么都没收到
+        if (!fullText) {
+          bubble.textContent = '没有收到回复，请重试';
         }
+
       } catch (err) {
-        hideTyping();
-        addMessage('ai', `[连接失败] ${err.message}`);
+        bubble.textContent = `[连接失败] ${err.message}`;
       }
 
+      statusEl.textContent = '身心陪伴 · 随时倾听';
       isSending = false;
     }
 

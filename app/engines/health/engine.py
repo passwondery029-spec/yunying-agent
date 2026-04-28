@@ -1,8 +1,9 @@
 """健康引导引擎"""
 
 from datetime import datetime
+from typing import AsyncGenerator
 
-from app.core.llm import chat_with_system
+from app.core.llm import chat_with_system, chat_stream_with_system
 from app.core.rag import rag_service
 from app.engines.health.prompts import HEALTH_ENGINE_SYSTEM_PROMPT, HEALTH_SNAPSHOT_TEMPLATE
 from app.health.models import HealthMetrics, HealthEvent, UserHealthBaseline
@@ -167,3 +168,39 @@ async def health_chat(
         temperature=0.7,
         max_tokens=512,
     )
+
+
+async def health_chat_stream(
+    user_message: str,
+    user_id: str,
+    history: list[dict] | None = None,
+    health_snapshot: str | None = None,
+    memory_text: str = "",
+) -> AsyncGenerator[str, None]:
+    """健康引导引擎流式对话"""
+    system_prompt = HEALTH_ENGINE_SYSTEM_PROMPT
+
+    if memory_text:
+        system_prompt += f"\n\n{memory_text}"
+
+    if health_snapshot and health_snapshot != "暂无用户健康数据":
+        system_prompt += f"\n\n{health_snapshot}"
+
+    context_messages = history or []
+    context_messages = context_messages + [{"role": "user", "content": user_message}]
+    knowledge_section = rag_service.retrieve(
+        messages=context_messages,
+        engine_type="health",
+        max_chars=3000 if len(context_messages) <= 4 else 4000,
+    )
+    if knowledge_section:
+        system_prompt += f"\n\n## 中医心理学参考知识\n{knowledge_section}"
+
+    async for chunk in chat_stream_with_system(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        history=history,
+        temperature=0.7,
+        max_tokens=512,
+    ):
+        yield chunk

@@ -1,13 +1,15 @@
 """对话接口"""
 
 import asyncio
+import json
 import uuid
 from collections import defaultdict
 from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from app.api.schemas import ChatRequest, ChatResponse
-from app.core.orchestrator import orchestrate
+from app.core.orchestrator import orchestrate, orchestrate_stream
 from app.core.output_parser import parse_blocks
 from app.core.auth import require_auth, TokenData
 from app.memory.store import memory
@@ -219,3 +221,131 @@ async def chat(req: ChatRequest, request: Request, auth: TokenData = Depends(req
     except Exception as e:
         logger.error(f"对话处理失败: {e}")
         raise HTTPException(status_code=500, detail="对话处理失败，请稍后再试")
+
+
+@router.post("/stream")
+async def chat_stream(req: ChatRequest, request: Request, auth: TokenData = Depends(require_auth)):
+    """流式对话接口：SSE 逐 token 返回
+
+    前端通过 fetch + ReadableStream 接收，
+    每条 SSE data 是一个 JSON: {"text": "..."} 或 {"done": true, "meta": {...}}
+    """
+    user_id = auth.user_id
+    session_id = req.session_id or f"default_{user_id}"
+
+    # 并发控制
+    lock = _user_locks[user_id]
+    if lock.locked():
+        raise HTTPException(status_code=429, detail="您的上一个请求正在处理中，请稍后再试")
+
+    async def _generate():
+        try:
+            async with lock:
+                # 加载健康数据
+                from app.core.database import get_latest_metrics as db_get_latest_metrics
+                if req.health_data is not None:
+                    realtime_metrics = _health_data_to_metrics(req.health_data)
+                    if realtime_metrics is not None:
+                        memory.update_metrics(user_id, realtime_metrics)
+                    profile_updates = {}
+                    if req.health_data.emotion_trend:
+                        profile_updates["emotion_trend"] = req.health_data.emotion_trend
+                    if req.health_data.last_meditation:
+                        profile_updates["last_meditation"] = req.health_data.last_meditation
+                    if profile_updates:
+                        memory.update_profile(user_id, **profile_updates)
+                else:
+                    saved_metrics = await db_get_latest_metrics(user_id)
+                    if saved_metrics:
+                        realtime_metrics = HealthMetrics(
+                            heart_rate_avg=saved_metrics.get("heart_rate"),
+                            heart_rate_resting=saved_metrics.get("heart_rate"),
+                            hrv_sdnn=saved_metrics.get("hrv"),
+                            temperature_avg=saved_metrics.get("skin_temp"),
+                            steps=saved_metrics.get("steps"),
+                            sleep_duration_hours=saved_metrics.get("sleep_hours"),
+                        )
+                        memory.update_metrics(user_id, realtime_metrics)
+
+                # 记录用户消息
+                await memory.add_message(session_id, "user", req.message, user_id)
+
+                # 构建上下文
+                history = await memory.get_history(session_id, user_id, limit=10)
+                history = history[:-1] if history else []
+                profile = await memory.get_profile(user_id)
+                session = memory.get_session(session_id, user_id)
+                health_events = session.active_events
+
+                # 记忆碎片
+                memory_fragments = fragment_store.retrieve(
+                    user_id=user_id, query=req.message, top_k=5,
+                )
+                memory_text = fragment_store.format_fragments_for_prompt(memory_fragments)
+
+                # 流式生成
+                full_reply = ""
+                async for chunk in orchestrate_stream(
+                    user_message=req.message,
+                    user_id=user_id,
+                    history=history,
+                    health_events=health_events,
+                    profile=profile,
+                    memory_text=memory_text,
+                ):
+                    full_reply += chunk
+                    yield f"data: {json.dumps({'text': chunk}, ensure_ascii=False)}\n\n"
+
+                # 记录完整回复
+                await memory.add_message(session_id, "assistant", full_reply, user_id)
+
+                # 后台：记忆提取
+                user_turns = len([m for m in history if m.get("role") == "user"])
+                if user_turns > 0 and user_turns % EXTRACTION_INTERVAL == 0:
+                    all_history = await memory.get_history(
+                        session_id, user_id, limit=EXTRACTION_INTERVAL * 2
+                    )
+                    if all_history and len(all_history) >= 4:
+                        async def _safe_extract():
+                            try:
+                                await extract_fragments(
+                                    user_id=user_id,
+                                    session_messages=all_history,
+                                    source_session=session_id,
+                                )
+                            except Exception as e:
+                                logger.warning(f"记忆提取异步任务失败: {e}")
+                        _create_background_task(_safe_extract())
+
+                # 后台：体质推断
+                if (
+                    profile.constitution in ("未测评", None, "")
+                    and user_turns >= 5
+                    and user_turns % 5 == 0
+                ):
+                    from app.memory.extractor import infer_constitution_from_dialogue
+                    recent = await memory.get_history(session_id, user_id, limit=10)
+                    async def _safe_infer():
+                        try:
+                            await infer_constitution_from_dialogue(user_id, recent)
+                        except Exception as e:
+                            logger.warning(f"体质推断失败: {e}")
+                    _create_background_task(_safe_infer())
+
+                # 发送完成信号
+                clean_reply, blocks = parse_blocks(full_reply)
+                yield f"data: {json.dumps({'done': True, 'meta': {'reply': clean_reply, 'blocks': [b.model_dump() for b in blocks]}}, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            logger.error(f"流式对话失败: {e}")
+            yield f"data: {json.dumps({'error': '对话处理失败，请稍后再试'}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

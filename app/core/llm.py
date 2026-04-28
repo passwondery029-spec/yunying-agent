@@ -4,6 +4,9 @@
 - 有 API Key：真实调用 LLM（含重试、降级、超时）
 - 无 API Key：降级为模拟回复（用于开发和测试）
 
+支持流式输出：
+- chat_stream(): 异步生成器，逐 token 返回
+
 安全措施：
 - API Key 不出现在日志中
 - 调用失败自动重试（指数退避）
@@ -12,6 +15,7 @@
 
 import asyncio
 import time
+from typing import AsyncGenerator
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
 from loguru import logger
 from app.config import get_settings
@@ -231,6 +235,91 @@ async def chat(
     # 全部模型都失败，返回降级回复
     logger.error("所有模型均失败，返回降级回复")
     return _get_fallback_reply(error_type or "error")
+
+
+async def chat_stream(
+    messages: list[dict],
+    model: str | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 2048,
+    **kwargs,
+) -> AsyncGenerator[str, None]:
+    """流式调用 LLM，逐 token 返回文本片段
+
+    Args:
+        messages: OpenAI 格式的消息列表
+        model: 模型名称
+        temperature: 温度参数
+        max_tokens: 最大生成 token 数
+
+    Yields:
+        文本片段（通常是一个 token 对应的几个字）
+    """
+    # 无 API Key 时降级为模拟回复（一次性 yield）
+    if not _has_api_key or _client is None:
+        user_msg = ""
+        for m in reversed(messages):
+            if m.get("role") == "user":
+                user_msg = m.get("content", "")
+                break
+        yield _mock_reply(user_msg)
+        return
+
+    resolved_model = model or _settings.llm_model
+    resolved_model = MODEL_ALIASES.get(resolved_model, resolved_model)
+
+    try:
+        start_time = time.time()
+        stream = await _client.chat.completions.create(
+            model=resolved_model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+        async for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+        elapsed = time.time() - start_time
+        logger.debug(f"LLM流式调用完成: model={resolved_model}, elapsed={elapsed:.1f}s")
+    except Exception as e:
+        logger.error(f"LLM流式调用失败: {type(e).__name__}: {e}")
+        yield _get_fallback_reply("error")
+
+
+async def chat_stream_with_system(
+    system_prompt: str,
+    user_message: str,
+    history: list[dict] | None = None,
+    model: str | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 2048,
+) -> AsyncGenerator[str, None]:
+    """带系统提示的流式对话
+
+    Args:
+        system_prompt: 系统提示
+        user_message: 用户消息
+        history: 对话历史
+        model: 模型名称
+        temperature: 温度参数
+        max_tokens: 最大 token 数
+
+    Yields:
+        文本片段
+    """
+    messages = [{"role": "system", "content": system_prompt}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
+
+    async for chunk in chat_stream(
+        messages=messages,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    ):
+        yield chunk
 
 
 async def chat_with_system(
