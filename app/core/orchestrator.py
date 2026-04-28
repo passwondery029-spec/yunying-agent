@@ -19,7 +19,7 @@ class Intent(str, Enum):
 INTENT_ROUTER_PROMPT = """你是一个意图分类器。根据用户的消息，判断用户的主要意图。
 
 分类规则：
-- health：用户提到身体症状（头痛、胸闷、心慌、头晕等）、健康指标、心率、睡眠质量、体温、运动、养生、体质、中医身体概念（肝气、心火、阳虚等）
+- health：用户提到身体症状（头痛、胸闷、心慌、头晕等）、健康指标、心率、睡眠质量、体温、运动、养生、体质、中医身体概念（肝气、心火、阳虚等）、询问自己最近状况（"我最近怎么样""我最近身体怎么样""看看我的数据""我的健康情况"）
 - healing：用户提到情绪困扰（焦虑、压力、低落、悲伤、愤怒、恐惧等）、想倾诉、冥想、放松、心情不好、孤独、想哭、失眠伴随情绪问题、更年期情绪波动
 - product：用户问到产品、购买、推荐商品、价格、下单、合香、手串、香、订、买、多少钱、沉香、檀香
 - general：日常问候、闲聊、天气、其他无关话题
@@ -98,6 +98,8 @@ def _keyword_classify(message: str) -> Intent:
         "体质", "阳虚", "阴虚", "气虚", "痰湿", "气郁",
         "肝气", "心火", "脾虚", "肾虚", "肺气",
         "穴位", "按摩", "针灸", "方剂", "中药",
+        "我最近怎么样", "我最近身体", "看看我的数据", "我的健康",
+        "我的指标", "我的睡眠", "我的心率", "最近状况",
     ]
     healing_keywords = [
         "焦虑", "压力", "烦", "累", "心情", "情绪", "冥想", "放松",
@@ -302,15 +304,20 @@ async def orchestrate(
 
     else:
         # 通用闲聊，走疗愈引擎的轻量模式
-        # 不注入健康快照，不注入RAG，保持自然闲聊感
-        # 但仍注入记忆碎片（让闲聊也能记住用户）
+        # 仍注入基础健康快照（让AI知道用户的基本状态）
+        # 但用轻量模式：不注入知识库
         from app.engines.healing.engine import healing_chat
+
+        light_snapshot = _build_healing_snapshot_for_engine(
+            profile=profile,
+            health_events=health_events,
+        ) if profile else None
 
         reply = await healing_chat(
             user_message=user_message,
             user_id=user_id,
             history=history,
-            healing_snapshot=None,  # 闲聊不注入健康快照
+            healing_snapshot=light_snapshot,
             light_mode=True,  # 轻量模式：不注入知识库
             memory_text=memory_text,
         )
@@ -394,14 +401,18 @@ async def orchestrate_stream(
             yield chunk
 
     else:
-        # 通用闲聊
+        # 通用闲聊：仍注入基础健康快照
         from app.engines.healing.engine import healing_chat_stream
+
+        light_snapshot = _build_healing_snapshot_for_engine(
+            profile=profile, health_events=health_events,
+        ) if profile else None
 
         async for chunk in healing_chat_stream(
             user_message=user_message,
             user_id=user_id,
             history=history,
-            healing_snapshot=None,
+            healing_snapshot=light_snapshot,
             light_mode=True,
             memory_text=memory_text,
         ):
