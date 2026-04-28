@@ -583,9 +583,13 @@
       }
     }
 
+    function authHeaders() {
+      return { 'Authorization': `Bearer ${authToken}` };
+    }
+
     async function loadHealthProfile() {
       try {
-        const resp = await fetch('/api/health/profile', { headers: authHeaders() });
+        const resp = await fetch('/api/v1/health/profile', { headers: authHeaders() });
         if (!resp.ok) return;
         const data = await resp.json();
         if (data.heart_rate != null) document.getElementById('hpHR').value = data.heart_rate;
@@ -611,7 +615,7 @@
       // Filter out nulls
       Object.keys(data).forEach(k => data[k] == null && delete data[k]);
       try {
-        const resp = await fetch('/api/health/manual', {
+        const resp = await fetch('/api/v1/health/manual', {
           method: 'POST',
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
@@ -621,8 +625,10 @@
           hint.style.display = 'inline';
           setTimeout(() => hint.style.display = 'none', 2000);
         } else {
-          const err = await resp.json();
-          alert('保存失败: ' + (err.detail || JSON.stringify(err)));
+          const text = await resp.text();
+          let errMsg = `保存失败 (${resp.status})`;
+          try { const err = JSON.parse(text); errMsg = err.detail || JSON.stringify(err); } catch {}
+          alert(errMsg);
         }
       } catch(e) {
         alert('保存失败: ' + e.message);
