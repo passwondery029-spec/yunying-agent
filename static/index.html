@@ -784,9 +784,15 @@
         start_meditation: params.style ? `我想试${params.style}冥想` : '我想开始冥想',
         view_product: params.name ? `告诉我更多关于${params.name}的信息` : '我想了解合香产品',
         try_acupoint: '教我一些可以按揉的穴位',
-        view_history: '看看我最近的健康数据'
+        view_history: '看看我最近的健康数据',
+        view_meditation_music: '推荐一些适合冥想的音乐曲目',
+        try_breathing: params.duration ? `我想试${params.duration}分钟呼吸练习` : '我想试呼吸放松练习',
+        view_sleep_tips: '给我一些改善睡眠的建议',
+        try_acupressure: '教我几个助眠的穴位按摩方法',
+        learn_more: '请继续详细介绍',
+        view_recommendation: params.topic ? `推荐一些${params.topic}相关的内容` : '请给我更多推荐',
       };
-      sendQuick(msgMap[action] || '继续');
+      sendQuick(msgMap[action] || '请继续详细介绍');
     }
 
     function showTyping() {
