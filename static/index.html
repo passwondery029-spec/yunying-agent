@@ -744,7 +744,11 @@
       };
       const icon = iconMap[block.action] || '👉';
 
-      el.innerHTML = `<button class="${cls}" onclick="handleAction('${block.action}', ${JSON.stringify(block.params || {})})">${icon} ${block.label}</button>`;
+      const btn = document.createElement('button');
+      btn.className = cls;
+      btn.textContent = `${icon} ${block.label}`;
+      btn.addEventListener('click', () => handleAction(block.action, block.params || {}));
+      el.appendChild(btn);
       return el;
     }
 
