@@ -711,24 +711,51 @@
       const el = document.createElement('div');
       el.className = 'block-product';
 
-      const priceText = block.price ? `¥${block.price}` : '';
-      const tcmHtml = block.tcm_rationale ? `<div class="prod-tcm">💡 ${block.tcm_rationale}</div>` : '';
-      const buyBtn = block.buy_url
-        ? `<a class="prod-buy" href="${block.buy_url}" target="_blank">了解详情</a>`
-        : '';
+      // header: icon + name + price
+      const header = document.createElement('div');
+      header.className = 'prod-header';
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'prod-icon';
+      iconDiv.textContent = '🌿';
+      const infoDiv = document.createElement('div');
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'prod-name';
+      nameDiv.textContent = block.name || '合香推荐';
+      infoDiv.appendChild(nameDiv);
+      if (block.price) {
+        const priceDiv = document.createElement('div');
+        priceDiv.className = 'prod-price';
+        priceDiv.textContent = '¥' + block.price;
+        infoDiv.appendChild(priceDiv);
+      }
+      header.appendChild(iconDiv);
+      header.appendChild(infoDiv);
 
-      el.innerHTML = `
-        <div class="prod-header">
-          <div class="prod-icon">🌿</div>
-          <div>
-            <div class="prod-name">${block.name || '合香推荐'}</div>
-            ${priceText ? `<div class="prod-price">${priceText}</div>` : ''}
-          </div>
-        </div>
-        <div class="prod-desc">${block.description || ''}</div>
-        ${tcmHtml}
-        ${buyBtn}
-      `;
+      // description
+      const descDiv = document.createElement('div');
+      descDiv.className = 'prod-desc';
+      descDiv.textContent = block.description || '';
+
+      el.appendChild(header);
+      el.appendChild(descDiv);
+
+      // TCM rationale
+      if (block.tcm_rationale) {
+        const tcmDiv = document.createElement('div');
+        tcmDiv.className = 'prod-tcm';
+        tcmDiv.textContent = '💡 ' + block.tcm_rationale;
+        el.appendChild(tcmDiv);
+      }
+
+      // "了解更多" button
+      const btn = document.createElement('button');
+      btn.className = 'prod-buy';
+      btn.textContent = '📂 了解更多';
+      btn.addEventListener('click', () => {
+        sendQuick(`告诉我更多关于${block.name || '这个产品'}的信息`);
+      });
+      el.appendChild(btn);
+
       return el;
     }
 
