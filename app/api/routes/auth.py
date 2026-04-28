@@ -1,6 +1,7 @@
 """认证API路由"""
 
 from fastapi import APIRouter, HTTPException, Request, Depends
+from loguru import logger
 from app.core.auth import (
     UserCreate, UserLogin, TokenResponse,
     user_store, create_token_pair, decode_token, create_access_token, create_refresh_token,
@@ -24,23 +25,35 @@ async def get_me(user: TokenData = Depends(require_auth)):
 @router.post("/register", response_model=TokenResponse)
 async def register(body: UserCreate):
     """用户注册"""
-    user = await user_store.create_user(
-        username=body.username,
-        password=body.password,
-        nickname=body.nickname or body.username,
-    )
-    if user is None:
-        raise HTTPException(status_code=409, detail="用户名已存在")
-    return create_token_pair(user["user_id"], user["username"])
+    try:
+        user = await user_store.create_user(
+            username=body.username,
+            password=body.password,
+            nickname=body.nickname or body.username,
+        )
+        if user is None:
+            raise HTTPException(status_code=409, detail="用户名已存在")
+        return create_token_pair(user["user_id"], user["username"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"注册失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"注册失败，请稍后重试")
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: UserLogin):
     """用户登录"""
-    user = await user_store.verify_user(body.username, body.password)
-    if user is None:
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
-    return create_token_pair(user["user_id"], user["username"])
+    try:
+        user = await user_store.verify_user(body.username, body.password)
+        if user is None:
+            raise HTTPException(status_code=401, detail="用户名或密码错误")
+        return create_token_pair(user["user_id"], user["username"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"登录失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"登录失败，请稍后重试")
 
 
 @router.post("/refresh", response_model=TokenResponse)
