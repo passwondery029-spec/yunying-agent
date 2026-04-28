@@ -2,14 +2,25 @@
 
 import os
 import time
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
 from fastapi import Header, HTTPException
-from passlib.context import CryptContext
 from pydantic import BaseModel, Field
+
+# 尝试导入 bcrypt，失败则用 hashlib 降级
+_USE_BCRYPT = False
+try:
+    from passlib.context import CryptContext
+    _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    # 测试一下 bcrypt 是否真的能用
+    _pwd_context.hash("test")
+    _USE_BCRYPT = True
+except Exception:
+    _pwd_context = None
 
 
 # === 数据模型 ===
@@ -27,9 +38,6 @@ JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))  # 每次启动随�
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "72"))  # token有效期72小时
 JWT_REFRESH_DAYS = int(os.getenv("JWT_REFRESH_DAYS", "30"))  # 刷新token有效期30天
-
-# 密码加密
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # === 数据模型 ===
@@ -70,12 +78,23 @@ class TokenPayload(BaseModel):
 
 def hash_password(password: str) -> str:
     """哈希密码"""
-    return pwd_context.hash(password)
+    if _USE_BCRYPT and _pwd_context:
+        return _pwd_context.hash(password)
+    # 降级：用 sha256 + salt
+    salt = secrets.token_hex(16)
+    h = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+    return f"sha256${salt}${h}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    if _USE_BCRYPT and _pwd_context:
+        return _pwd_context.verify(plain_password, hashed_password)
+    # 降级：sha256 验证
+    if hashed_password.startswith("sha256$"):
+        _, salt, h = hashed_password.split("$", 2)
+        return hashlib.sha256(f"{salt}:{plain_password}".encode()).hexdigest() == h
+    return False
 
 
 # === Token工具 ===
