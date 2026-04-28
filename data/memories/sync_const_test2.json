@@ -1,0 +1,143 @@
+{
+  "user_id": "sync_const_test2",
+  "constitution": "阳虚",
+  "main_concerns": [],
+  "fragments": [
+    {
+      "id": "e3318a550874",
+      "user_id": "sync_const_test2",
+      "content": "特别怕冷，冬天手脚冰凉，夏天也不敢吹空调",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:15:49.430025",
+      "source_summary": "特别怕冷，冬天手脚冰凉，夏天也不敢吹空调",
+      "tags": [
+        "怕冷",
+        "手脚冰凉",
+        "空调禁忌"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": false,
+      "invalidated_by": "e3318a550874",
+      "created_at": "2026-04-23T20:15:49.430075"
+    },
+    {
+      "id": "29db24fcba04",
+      "user_id": "sync_const_test2",
+      "content": "吃凉的就拉肚子，容易疲倦没力气",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:15:49.430089",
+      "source_summary": "吃凉的就拉肚子，容易疲倦没力气",
+      "tags": [
+        "吃凉腹泻",
+        "疲倦乏力"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": false,
+      "invalidated_by": "29db24fcba04",
+      "created_at": "2026-04-23T20:15:49.430108"
+    },
+    {
+      "id": "0552a26ba461",
+      "user_id": "sync_const_test2",
+      "content": "面色比较苍白，阳虚的可能性很大",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:15:49.430116",
+      "source_summary": "面色比较苍白，阳虚的可能性很大",
+      "tags": [
+        "面色苍白",
+        "阳虚"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": false,
+      "invalidated_by": "0552a26ba461",
+      "created_at": "2026-04-23T20:15:49.430128"
+    },
+    {
+      "id": "e3318a550874",
+      "user_id": "sync_const_test2",
+      "content": "特别怕冷，冬天手脚冰凉，夏天也不敢吹空调",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:15:49.430025",
+      "source_summary": "特别怕冷，冬天手脚冰凉，夏天也不敢吹空调",
+      "tags": [
+        "怕冷",
+        "手脚冰凉",
+        "空调禁忌"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": false,
+      "invalidated_by": "e3318a550874",
+      "created_at": "2026-04-23T20:15:49.430075"
+    },
+    {
+      "id": "29db24fcba04",
+      "user_id": "sync_const_test2",
+      "content": "吃凉的就拉肚子，容易疲倦没力气",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:15:49.430089",
+      "source_summary": "吃凉的就拉肚子，容易疲倦没力气",
+      "tags": [
+        "吃凉腹泻",
+        "疲倦乏力"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": false,
+      "invalidated_by": "29db24fcba04",
+      "created_at": "2026-04-23T20:15:49.430108"
+    },
+    {
+      "id": "0552a26ba461",
+      "user_id": "sync_const_test2",
+      "content": "面色比较苍白，阳虚的可能性很大",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:15:49.430116",
+      "source_summary": "面色比较苍白，阳虚的可能性很大",
+      "tags": [
+        "面色苍白",
+        "阳虚"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": false,
+      "invalidated_by": "0552a26ba461",
+      "created_at": "2026-04-23T20:15:49.430128"
+    }
+  ],
+  "last_extraction": "2026-04-23T20:15:49.440607",
+  "total_extractions": 2
+}

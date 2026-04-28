@@ -1,0 +1,57 @@
+{
+  "user_id": "const_fix_test",
+  "constitution": "阳虚",
+  "main_concerns": [],
+  "fragments": [
+    {
+      "id": "638255dd0da8",
+      "user_id": "const_fix_test",
+      "content": "用户特别怕冷，冬天手脚冰凉，夏天不敢吹空调，吃凉食易拉肚子，面色苍白，经判断阳虚的可能性很大。",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:16:40.454577",
+      "source_summary": "用户特别怕冷，冬天手脚冰凉，夏天不敢吹空调，吃凉食易拉肚子，面色苍白，经判断阳虚的可能性很大。",
+      "tags": [
+        "怕冷",
+        "阳虚",
+        "体质",
+        "肠胃敏感"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": true,
+      "invalidated_by": null,
+      "created_at": "2026-04-23T20:16:40.454627"
+    },
+    {
+      "id": "638255dd0da8",
+      "user_id": "const_fix_test",
+      "content": "用户特别怕冷，冬天手脚冰凉，夏天不敢吹空调，吃凉食易拉肚子，面色苍白，经判断阳虚的可能性很大。",
+      "category": "health_fact",
+      "source_session": "sess_test",
+      "source_time": "2026-04-23T20:16:40.454577",
+      "source_summary": "用户特别怕冷，冬天手脚冰凉，夏天不敢吹空调，吃凉食易拉肚子，面色苍白，经判断阳虚的可能性很大。",
+      "tags": [
+        "怕冷",
+        "阳虚",
+        "体质",
+        "肠胃敏感"
+      ],
+      "constitution": "阳虚",
+      "emotion": null,
+      "importance": 0.9,
+      "access_count": 0,
+      "last_accessed": null,
+      "decay_factor": 1.0,
+      "is_valid": true,
+      "invalidated_by": null,
+      "created_at": "2026-04-23T20:16:40.454627"
+    }
+  ],
+  "last_extraction": "2026-04-23T20:16:40.464855",
+  "total_extractions": 2
+}

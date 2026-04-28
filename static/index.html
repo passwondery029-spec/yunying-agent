@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云英 AI - 身心健康陪伴</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #7C6F9B;
+      --primary-light: #A99BC5;
+      --primary-dark: #5A4D78;
+      --bg: #F7F5FA;
+      --card: #FFFFFF;
+      --text: #2D2B3D;
+      --text-secondary: #7A7890;
+      --border: #E8E5F0;
+      --success: #6BAF7A;
+      --warning: #E8A456;
+      --danger: #D46666;
+      --bubble-user: #7C6F9B;
+      --bubble-ai: #FFFFFF;
+    }
+
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ========== 登录页 ========== */
+    .login-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #F7F5FA 0%, #E8E5F0 100%);
+    }
+
+    .login-card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 40px 32px;
+      width: 360px;
+      box-shadow: 0 8px 32px rgba(124,111,155,0.15);
+      text-align: center;
+    }
+
+    .login-card .logo {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      color: white; display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 16px;
+    }
+
+    .login-card h2 { margin-bottom: 4px; }
+    .login-card .subtitle { color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; }
+
+    .login-tabs { display: flex; gap: 0; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    .login-tab {
+      flex: 1; padding: 10px; text-align: center; font-size: 14px; cursor: pointer;
+      background: var(--bg); color: var(--text-secondary); border: none; transition: all 0.2s;
+    }
+    .login-tab.active { background: var(--primary); color: white; }
+
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-group label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+    .form-group input {
+      width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+
+    .login-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 12px; font-size: 15px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white; cursor: pointer; transition: transform 0.2s;
+    }
+    .login-btn:hover { transform: scale(1.02); }
+    .login-btn:active { transform: scale(0.98); }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .login-error { color: var(--danger); font-size: 12px; margin-top: 8px; min-height: 16px; }
+
+    /* ========== 主页面 ========== */
+    .app-page { display: none; flex-direction: column; height: 100vh; }
+    .app-page.active { display: flex; }
+
+    /* 顶部栏 */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white; padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 8px rgba(124,111,155,0.3); z-index: 10;
+    }
+
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); display: flex; align-items: center;
+      justify-content: center; font-size: 20px; flex-shrink: 0;
+    }
+
+    .header-info { flex: 1; }
+    .header-info h1 { font-size: 17px; font-weight: 600; }
+    .header-info p { font-size: 12px; opacity: 0.8; }
+
+    .logout-btn {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+      color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+    /* 健康数据面板 */
+    .health-profile-panel {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+    }
+    .health-profile-panel h4 {
+      display: flex; justify-content: space-between; align-items: center;
+      margin: 0 0 8px 0; font-size: 14px;
+    }
+    .hp-toggle { background: none; border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 10px; font-size: 12px; cursor: pointer; color: var(--text); }
+    .hp-body { display: none; }
+    .hp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px; margin-bottom: 10px; }
+    .hp-field { display: flex; flex-direction: column; gap: 3px; }
+    .hp-field label { font-size: 11px; color: #888; }
+    .hp-field input, .hp-field select {
+      padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; background: var(--bg); color: var(--text);
+    }
+    .hp-actions { display: flex; gap: 8px; align-items: center; }
+    .hp-save { padding: 6px 16px; background: #7B5EA7; color: white; border: none;
+      border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .hp-save:hover { background: #6A4D96; }
+    .hp-cancel { padding: 6px 12px; background: none; border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
+    .hp-saved { font-size: 12px; color: #2E7D32; }
+
+    /* 聊天区域 */
+    .chat-area {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .message {
+      display: flex; gap: 8px; max-width: 85%; animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+    .message.ai { align-self: flex-start; }
+
+    .msg-avatar {
+      width: 32px; height: 32px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+    }
+    .message.user .msg-avatar { background: #E8E5F0; }
+    .message.ai .msg-avatar { background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: white; }
+
+    .msg-content { max-width: 100%; }
+
+    .msg-bubble {
+      padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6;
+      word-break: break-word; white-space: pre-wrap;
+    }
+    .message.user .msg-bubble { background: var(--bubble-user); color: white; border-bottom-right-radius: 4px; }
+    .message.ai .msg-bubble {
+      background: var(--bubble-ai); color: var(--text); border: 1px solid var(--border);
+      border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* ========== 结构化内容块 ========== */
+
+    /* 冥想引导卡 */
+    .block-meditation {
+      margin-top: 8px; background: linear-gradient(135deg, #F3F0FF 0%, #EDE8FA 100%);
+      border: 1px solid #D5CCE8; border-radius: 14px; padding: 14px 16px; max-width: 320px;
+    }
+    .block-meditation .med-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+    }
+    .block-meditation .med-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      color: white; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .block-meditation .med-title { font-size: 15px; font-weight: 600; color: var(--primary-dark); }
+    .block-meditation .med-meta { font-size: 11px; color: var(--text-secondary); }
+    .block-meditation .med-steps {
+      list-style: none; padding: 0; margin: 0;
+    }
+    .block-meditation .med-steps li {
+      padding: 6px 0 6px 24px; position: relative; font-size: 13px; line-height: 1.5;
+      color: var(--text);
+    }
+    .block-meditation .med-steps li::before {
+      content: ''; position: absolute; left: 4px; top: 12px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--primary-light);
+    }
+    .block-meditation .med-steps li:nth-child(1)::before { background: #A99BC5; }
+    .block-meditation .med-steps li:nth-child(2)::before { background: #8B7FB0; }
+    .block-meditation .med-steps li:nth-child(3)::before { background: #7C6F9B; }
+    .block-meditation .med-steps li:nth-child(4)::before { background: #6A5D88; }
+
+    /* 产品推荐卡 */
+    .block-product {
+      margin-top: 8px; background: #FFFDF7; border: 1px solid #E8DCC8;
+      border-radius: 14px; padding: 14px 16px; max-width: 300px;
+    }
+    .block-product .prod-header { display: flex; gap: 10px; margin-bottom: 10px; }
+    .block-product .prod-icon {
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      background: linear-gradient(135deg, #E8D5B7, #D4B896);
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .block-product .prod-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .block-product .prod-price { font-size: 13px; color: var(--warning); font-weight: 600; }
+    .block-product .prod-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
+    .block-product .prod-tcm {
+      font-size: 12px; color: var(--primary); background: #F3F0FF;
+      padding: 6px 10px; border-radius: 8px; line-height: 1.5;
+    }
+    .block-product .prod-buy {
+      display: inline-block; margin-top: 10px; padding: 8px 20px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white; border-radius: 20px; font-size: 13px; text-decoration: none;
+      cursor: pointer; border: none; transition: transform 0.2s;
+    }
+    .block-product .prod-buy:hover { transform: scale(1.03); }
+
+    /* 操作按钮 */
+    .block-action {
+      margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .action-btn {
+      padding: 8px 16px; border-radius: 20px; font-size: 13px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--card); color: var(--text);
+      transition: all 0.2s; display: flex; align-items: center; gap: 4px;
+    }
+    .action-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .action-btn.primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white; border-color: var(--primary);
+    }
+
+    /* 打字指示器 */
+    .typing-indicator {
+      display: none; align-self: flex-start; gap: 8px; max-width: 85%;
+    }
+    .typing-indicator.active { display: flex; }
+
+    .typing-dots {
+      padding: 12px 16px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; border-bottom-left-radius: 4px; display: flex; gap: 4px;
+    }
+    .typing-dots span {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--primary-light);
+      animation: typing 1.4s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+      30% { opacity: 1; transform: scale(1); }
+    }
+
+    /* 输入区域 */
+    .input-area { background: var(--card); border-top: 1px solid var(--border); padding: 12px 16px; }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+
+    .input-row textarea {
+      flex: 1; border: 1px solid var(--border); border-radius: 20px; padding: 10px 16px;
+      font-size: 14px; font-family: inherit; resize: none; outline: none;
+      max-height: 100px; line-height: 1.4; transition: border-color 0.2s;
+    }
+    .input-row textarea:focus { border-color: var(--primary); }
+
+    .send-btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: transform 0.2s, opacity 0.2s;
+    }
+    .send-btn:hover { transform: scale(1.05); }
+    .send-btn:active { transform: scale(0.95); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .toolbar { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .toolbar button {
+      padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text-secondary); font-size: 12px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .toolbar button:hover { border-color: var(--primary); color: var(--primary); }
+    .toolbar button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* 欢迎消息 */
+    .welcome { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+    .welcome .logo {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      color: white; display: flex; align-items: center; justify-content: center;
+      font-size: 36px; margin: 0 auto 16px;
+    }
+    .welcome h2 { color: var(--text); margin-bottom: 8px; font-size: 18px; }
+    .welcome p { font-size: 13px; line-height: 1.6; max-width: 280px; margin: 0 auto; }
+
+    .quick-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; max-width: 300px; margin-left: auto; margin-right: auto; }
+    .quick-action {
+      padding: 10px 16px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--card); text-align: left; cursor: pointer; font-size: 13px;
+      color: var(--text); transition: all 0.2s;
+    }
+    .quick-action:hover { border-color: var(--primary); background: #F5F2FA; }
+    .quick-action .icon { margin-right: 6px; }
+
+    /* 健康数据模拟面板 */
+    .health-profile-panel {
+      background: var(--card); border-top: 1px solid var(--border);
+      padding: 10px 16px;
+    }
+    .health-profile-panel h4 { font-size: 13px; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .health-profile-panel h4 .hp-toggle { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; color: var(--text-secondary); }
+    .health-profile-panel h4 .hp-toggle:hover { background: var(--primary-light); color: var(--primary); }
+    .hp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .hp-field { display: flex; flex-direction: column; gap: 2px; }
+    .hp-field label { font-size: 11px; color: var(--text-secondary); }
+    .hp-field input, .hp-field select {
+      border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+      font-size: 13px; outline: none; width: 100%;
+    }
+    .hp-field input:focus, .hp-field select:focus { border-color: var(--primary); }
+    .hp-actions { margin-top: 10px; display: flex; gap: 8px; }
+    .hp-actions button { padding: 6px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; border: none; }
+    .hp-save { background: var(--primary); color: white; }
+    .hp-save:hover { opacity: 0.9; }
+    .hp-cancel { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border) !important; }
+    .hp-body { display: none; }
+    .hp-body.active { display: block; }
+    .hp-empty { text-align: center; padding: 12px; color: var(--text-secondary); font-size: 13px; }
+    .hp-empty button { margin-top: 8px; padding: 6px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; border: none; background: var(--primary); color: white; }
+    .hp-saved { color: #2E7D32; font-size: 11px; margin-left: 6px; }
+
+    /* 响应式 */
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .chat-area { padding: 12px; }
+      .message { max-width: 90%; }
+      .login-card { width: 90%; padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== 登录页 ========== -->
+  <div class="login-page" id="loginPage">
+    <div class="login-card">
+      <div class="logo">🪷</div>
+      <h2>云英</h2>
+      <p class="subtitle">身心健康陪伴</p>
+
+      <div class="login-tabs">
+        <div class="login-tab active" onclick="switchTab('login')">登录</div>
+        <div class="login-tab" onclick="switchTab('register')">注册</div>
+      </div>
+
+      <div class="form-group" id="nicknameGroup" style="display:none">
+        <label>昵称</label>
+        <input type="text" id="nicknameInput" placeholder="你想被怎么称呼">
+      </div>
+
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="usernameInput" placeholder="请输入用户名" autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="passwordInput" placeholder="请输入密码" autocomplete="current-password">
+      </div>
+
+      <button class="login-btn" id="loginBtn" onclick="handleAuth()">登录</button>
+      <div class="login-error" id="authError"></div>
+    </div>
+  </div>
+
+  <!-- ========== 主页面 ========== -->
+  <div class="app-page" id="appPage">
+    <!-- 顶部栏 -->
+    <div class="header">
+      <div class="avatar">🪷</div>
+      <div class="header-info">
+        <h1>云英</h1>
+        <p id="statusText">身心陪伴 · 随时倾听</p>
+      </div>
+      <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+
+    <!-- 健康档案面板 -->
+    <div class="health-profile-panel" id="healthProfilePanel">
+      <h4>
+        <span>📋 健康档案</span>
+        <button class="hp-toggle" onclick="toggleHealthProfile()" id="hpToggle">展开</button>
+      </h4>
+      <div class="hp-body" id="hpBody">
+        <div class="hp-grid">
+          <div class="hp-field"><label>心率 (bpm)</label><input type="number" id="hpHR" value="" min="40" max="200" placeholder="如：72"></div>
+          <div class="hp-field"><label>HRV (ms)</label><input type="number" id="hpHRV" value="" min="10" max="150" step="0.1" placeholder="如：50"></div>
+          <div class="hp-field"><label>体温 (°C)</label><input type="number" id="hpTemp" value="" min="35" max="40" step="0.1" placeholder="如：36.5"></div>
+          <div class="hp-field"><label>睡眠 (小时)</label><input type="number" id="hpSleep" value="" min="0" max="14" step="0.5" placeholder="如：7"></div>
+          <div class="hp-field"><label>步数</label><input type="number" id="hpSteps" value="" min="0" max="50000" placeholder="如：5000"></div>
+          <div class="hp-field"><label>情绪趋势</label>
+            <select id="hpEmotion">
+              <option value="">请选择</option>
+              <option value="愉快">愉快</option>
+              <option value="平稳">平稳</option>
+              <option value="略低落">略低落</option>
+              <option value="焦虑">焦虑</option>
+              <option value="烦躁">烦躁</option>
+              <option value="疲惫">疲惫</option>
+            </select>
+          </div>
+          <div class="hp-field"><label>上次冥想</label>
+            <select id="hpMeditation">
+              <option value="">请选择</option>
+              <option value="今天">今天</option>
+              <option value="昨天">昨天</option>
+              <option value="2天前">2天前</option>
+              <option value="3天前">3天前</option>
+              <option value="一周前">一周前</option>
+              <option value="很久没做了">很久没做了</option>
+            </select>
+          </div>
+        </div>
+        <div class="hp-actions">
+          <button class="hp-save" onclick="saveHealthProfile()">保存档案</button>
+          <button class="hp-cancel" onclick="toggleHealthProfile()">收起</button>
+          <span class="hp-saved" id="hpSavedHint" style="display:none">已保存 ✓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 聊天区域 -->
+    <div class="chat-area" id="chatArea">
+      <div class="welcome" id="welcome">
+        <div class="logo">🪷</div>
+        <h2>你好，我是云英</h2>
+        <p>我是你的身心健康伙伴，可以解读手串数据、倾听你的心声、陪伴你冥想放松</p>
+        <div class="quick-actions">
+          <div class="quick-action" onclick="sendQuick('我最近睡眠不太好，总是半夜醒过来')">
+            <span class="icon">🌙</span>最近睡眠不太好
+          </div>
+          <div class="quick-action" onclick="sendQuick('最近压力好大，感觉喘不过气')">
+            <span class="icon">💨</span>最近压力好大
+          </div>
+          <div class="quick-action" onclick="sendQuick('教我一个放松的呼吸法')">
+            <span class="icon">🧘</span>教我呼吸放松法
+          </div>
+          <div class="quick-action" onclick="sendQuick('我最近怎么样')">
+            <span class="icon">📊</span>看看我的健康状态
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 打字指示器 -->
+    <div class="typing-indicator" id="typingIndicator">
+      <div class="msg-avatar" style="background:linear-gradient(135deg,var(--primary-light),var(--primary));color:white;">🪷</div>
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+    </div>
+
+
+
+    <!-- 输入区域 -->
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="msgInput" rows="1" placeholder="和云英聊聊你的感受..."
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"/>
+          </svg>
+        </button>
+      </div>
+      <div class="toolbar">
+        <button onclick="toggleHealthProfile()" id="hpToggleBtn">📋 健康档案</button>
+        <button onclick="clearChat()">🗑️ 清空对话</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let authToken = localStorage.getItem('yunying_token') || '';
+    let isSending = false;
+    let authMode = 'login'; // 'login' | 'register'
+
+    // ========== 自动恢复登录 ==========
+    (async function autoLogin() {
+      if (!authToken) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/health/profile`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          showApp();
+        } else {
+          // token过期，清除
+          authToken = '';
+          localStorage.removeItem('yunying_token');
+        }
+      } catch (e) {
+        // 网络错误不清除token，下次再试
+      }
+    })();
+
+    // ========== 认证 ==========
+
+    function switchTab(mode) {
+      authMode = mode;
+      document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('nicknameGroup').style.display = mode === 'register' ? 'block' : 'none';
+      document.getElementById('loginBtn').textContent = mode === 'register' ? '注册' : '登录';
+      document.getElementById('authError').textContent = '';
+    }
+
+    async function handleAuth() {
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value.trim();
+      const nickname = document.getElementById('nicknameInput').value.trim();
+      const errorEl = document.getElementById('authError');
+      const btn = document.getElementById('loginBtn');
+
+      if (!username || !password) {
+        errorEl.textContent = '请输入用户名和密码';
+        return;
+      }
+      if (password.length < 6) {
+        errorEl.textContent = '密码至少6位';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '处理中...';
+      errorEl.textContent = '';
+
+      try {
+        const endpoint = authMode === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
+        const body = { username, password };
+        if (authMode === 'register' && nickname) body.nickname = nickname;
+
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.detail || '操作失败';
+          return;
+        }
+
+        authToken = data.access_token;
+        localStorage.setItem('yunying_token', authToken);
+        localStorage.setItem('yunying_username', username);
+        showApp();
+      } catch (err) {
+        errorEl.textContent = '连接失败: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = authMode === 'register' ? '注册' : '登录';
+      }
+    }
+
+    function showApp() {
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('appPage').classList.add('active');
+    }
+
+    function logout() {
+      authToken = '';
+      localStorage.removeItem('yunying_token');
+      document.getElementById('loginPage').style.display = 'flex';
+      document.getElementById('appPage').classList.remove('active');
+      clearChat();
+    }
+
+    // ========== 聊天 ==========
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    }
+
+    // ========== 健康档案 ==========
+    let healthProfileOpen = false;
+
+    async function toggleHealthProfile() {
+      healthProfileOpen = !healthProfileOpen;
+      const body = document.getElementById('hpBody');
+      const toggle = document.getElementById('hpToggle');
+      const btn = document.getElementById('hpToggleBtn');
+      if (healthProfileOpen) {
+        body.style.display = 'block';
+        toggle.textContent = '收起';
+        btn.classList.add('active');
+        await loadHealthProfile();
+      } else {
+        body.style.display = 'none';
+        toggle.textContent = '展开';
+        btn.classList.remove('active');
+      }
+    }
+
+    async function loadHealthProfile() {
+      try {
+        const resp = await fetch('/api/health/profile', { headers: authHeaders() });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.heart_rate != null) document.getElementById('hpHR').value = data.heart_rate;
+        if (data.hrv != null) document.getElementById('hpHRV').value = data.hrv;
+        if (data.temperature != null) document.getElementById('hpTemp').value = data.temperature;
+        if (data.sleep_hours != null) document.getElementById('hpSleep').value = data.sleep_hours;
+        if (data.steps != null) document.getElementById('hpSteps').value = data.steps;
+        if (data.emotion_trend) document.getElementById('hpEmotion').value = data.emotion_trend;
+        if (data.last_meditation) document.getElementById('hpMeditation').value = data.last_meditation;
+      } catch(e) { console.log('No saved profile yet'); }
+    }
+
+    async function saveHealthProfile() {
+      const data = {
+        heart_rate: parseFloat(document.getElementById('hpHR').value) || null,
+        hrv: parseFloat(document.getElementById('hpHRV').value) || null,
+        temperature: parseFloat(document.getElementById('hpTemp').value) || null,
+        sleep_hours: parseFloat(document.getElementById('hpSleep').value) || null,
+        steps: parseInt(document.getElementById('hpSteps').value) || null,
+        emotion_trend: document.getElementById('hpEmotion').value || null,
+        last_meditation: document.getElementById('hpMeditation').value || null
+      };
+      // Filter out nulls
+      Object.keys(data).forEach(k => data[k] == null && delete data[k]);
+      try {
+        const resp = await fetch('/api/health/manual', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+          const hint = document.getElementById('hpSavedHint');
+          hint.style.display = 'inline';
+          setTimeout(() => hint.style.display = 'none', 2000);
+        } else {
+          const err = await resp.json();
+          alert('保存失败: ' + (err.detail || JSON.stringify(err)));
+        }
+      } catch(e) {
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    // ========== 消息渲染 ==========
+
+    function addMessage(role, text, blocks = []) {
+      const welcome = document.getElementById('welcome');
+      if (welcome) welcome.style.display = 'none';
+
+      const chatArea = document.getElementById('chatArea');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = role === 'user' ? '👤' : '🪷';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'msg-content';
+
+      // 文字气泡
+      if (text) {
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.textContent = text;
+        contentDiv.appendChild(bubble);
+      }
+
+      // 渲染结构化块
+      blocks.forEach(block => {
+        const el = renderBlock(block);
+        if (el) contentDiv.appendChild(el);
+      });
+
+      msgDiv.appendChild(avatar);
+      msgDiv.appendChild(contentDiv);
+      chatArea.appendChild(msgDiv);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function renderBlock(block) {
+      switch (block.type) {
+        case 'meditation': return renderMeditationBlock(block);
+        case 'product': return renderProductBlock(block);
+        case 'action': return renderActionBlock(block);
+        default: return null;
+      }
+    }
+
+    function renderMeditationBlock(block) {
+      const el = document.createElement('div');
+      el.className = 'block-meditation';
+
+      const styleMap = { breathing: '呼吸冥想', body_scan: '身体扫描', visualization: '意象引导' };
+      const styleLabel = styleMap[block.style] || '冥想引导';
+      const duration = block.duration_minutes ? `${block.duration_minutes}分钟` : '';
+
+      let stepsHtml = '';
+      if (block.steps && block.steps.length) {
+        stepsHtml = `<ul class="med-steps">${block.steps.map(s => `<li>${s}</li>`).join('')}</ul>`;
+      }
+
+      el.innerHTML = `
+        <div class="med-header">
+          <div class="med-icon">🧘</div>
+          <div>
+            <div class="med-title">${block.title || styleLabel}</div>
+            <div class="med-meta">${styleLabel} · ${duration}</div>
+          </div>
+        </div>
+        ${stepsHtml}
+      `;
+      return el;
+    }
+
+    function renderProductBlock(block) {
+      const el = document.createElement('div');
+      el.className = 'block-product';
+
+      const priceText = block.price ? `¥${block.price}` : '';
+      const tcmHtml = block.tcm_rationale ? `<div class="prod-tcm">💡 ${block.tcm_rationale}</div>` : '';
+      const buyBtn = block.buy_url
+        ? `<a class="prod-buy" href="${block.buy_url}" target="_blank">了解详情</a>`
+        : '';
+
+      el.innerHTML = `
+        <div class="prod-header">
+          <div class="prod-icon">🌿</div>
+          <div>
+            <div class="prod-name">${block.name || '合香推荐'}</div>
+            ${priceText ? `<div class="prod-price">${priceText}</div>` : ''}
+          </div>
+        </div>
+        <div class="prod-desc">${block.description || ''}</div>
+        ${tcmHtml}
+        ${buyBtn}
+      `;
+      return el;
+    }
+
+    function renderActionBlock(block) {
+      const el = document.createElement('div');
+      el.className = 'block-action';
+
+      const isPrimary = block.action === 'start_meditation' || block.action === 'view_product';
+      const cls = isPrimary ? 'action-btn primary' : 'action-btn';
+      const iconMap = {
+        start_meditation: '🧘', view_product: '🌿',
+        try_acupoint: '💆', view_history: '📊'
+      };
+      const icon = iconMap[block.action] || '👉';
+
+      el.innerHTML = `<button class="${cls}" onclick="handleAction('${block.action}', ${JSON.stringify(block.params || {})})">${icon} ${block.label}</button>`;
+      return el;
+    }
+
+    function handleAction(action, params) {
+      const msgMap = {
+        start_meditation: params.style ? `我想试${params.style}冥想` : '我想开始冥想',
+        view_product: params.name ? `告诉我更多关于${params.name}的信息` : '我想了解合香产品',
+        try_acupoint: '教我一些可以按揉的穴位',
+        view_history: '看看我最近的健康数据'
+      };
+      sendQuick(msgMap[action] || '继续');
+    }
+
+    function showTyping() {
+      document.getElementById('typingIndicator').classList.add('active');
+      document.getElementById('statusText').textContent = '正在思考...';
+      document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
+    }
+
+    function hideTyping() {
+      document.getElementById('typingIndicator').classList.remove('active');
+      document.getElementById('statusText').textContent = '身心陪伴 · 随时倾听';
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text || isSending) return;
+
+      isSending = true;
+      input.value = '';
+      input.style.height = 'auto';
+      addMessage('user', text);
+      showTyping();
+
+      try {
+        const body = { message: text, channel: 'web' };
+
+        const res = await fetch(`${API_BASE}/api/v1/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (res.status === 401) {
+          hideTyping();
+          logout();
+          return;
+        }
+
+        const data = await res.json();
+        hideTyping();
+
+        if (data.reply) {
+          addMessage('ai', data.reply, data.blocks || []);
+        } else if (data.error) {
+          addMessage('ai', `[错误] ${data.error}`);
+        }
+      } catch (err) {
+        hideTyping();
+        addMessage('ai', `[连接失败] ${err.message}`);
+      }
+
+      isSending = false;
+    }
+
+    function sendQuick(text) {
+      document.getElementById('msgInput').value = text;
+      sendMessage();
+    }
+
+    function clearChat() {
+      const chatArea = document.getElementById('chatArea');
+      chatArea.innerHTML = `
+        <div class="welcome" id="welcome">
+          <div class="logo">🪷</div>
+          <h2>你好，我是云英</h2>
+          <p>我是你的身心健康伙伴，可以解读手串数据、倾听你的心声、陪伴你冥想放松</p>
+          <div class="quick-actions">
+            <div class="quick-action" onclick="sendQuick('我最近睡眠不太好，总是半夜醒过来')"><span class="icon">🌙</span>最近睡眠不太好</div>
+            <div class="quick-action" onclick="sendQuick('最近压力好大，感觉喘不过气')"><span class="icon">💨</span>最近压力好大</div>
+            <div class="quick-action" onclick="sendQuick('教我一个放松的呼吸法')"><span class="icon">🧘</span>教我呼吸放松法</div>
+            <div class="quick-action" onclick="sendQuick('我最近怎么样')"><span class="icon">📊</span>看看我的健康状态</div>
+          </div>
+        </div>`;
+    }
+  </script>
+</body>
+</html>
