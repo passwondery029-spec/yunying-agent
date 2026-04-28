@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from loguru import logger
 
-from app.api.routes import chat, health, event, profile, memory, auth, health_manual
+from app.api.routes import chat, health, event, profile, memory, auth, health_manual, data_export
 from app.api.schemas import HealthCheckResponse
 from app.config import get_settings
 from app.core.database import init_db
@@ -119,6 +119,7 @@ app.include_router(event.router, prefix="/api/v1")
 app.include_router(profile.router, prefix="/api/v1")
 app.include_router(memory.router, prefix="/api/v1")
 app.include_router(health_manual.router, prefix="/api/v1")
+app.include_router(data_export.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
