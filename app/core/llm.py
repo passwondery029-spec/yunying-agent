@@ -39,9 +39,8 @@ MODEL_ALIASES = {
 # 模型降级链：主模型→备用模型→轻量模型
 # 格式：[(model_name, max_retries, timeout), ...]
 FALLBACK_CHAIN = [
-    (_settings.llm_model, 2, 30.0),             # 主模型：重试2次，30秒超时
-    ("doubao-seed-1-6-flash-250828", 1, 20.0),  # 备用flash：重试1次，20秒超时
-    ("doubao-seed-2-0-lite-260215", 1, 15.0),   # 轻量lite：重试1次，15秒超时
+    (_settings.llm_model, 2, 30.0),                          # 主模型：接入点ID
+    ("ep-m-20260305204118-rh2xg", 1, 20.0),                  # 同接入点降级重试
 ]
 
 # 重试配置

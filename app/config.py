@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     llm_provider: str = "doubao"
     llm_api_key: str = ""
     llm_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
-    llm_model: str = "doubao-seed-1-6-flash-250415"
+    llm_model: str = "ep-m-20260305204118-rh2xg"
     llm_fallback_model: str = ""  # 降级模型（如 doubao-seed-1-6-lite-250828）
     llm_extractor_model: str = ""  # 记忆提取用轻量模型（如同flash或lite）
 
