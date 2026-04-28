@@ -674,11 +674,41 @@
 
     function renderBlock(block) {
       switch (block.type) {
+        case 'health_tip': return renderHealthTipBlock(block);
         case 'meditation': return renderMeditationBlock(block);
         case 'product': return renderProductBlock(block);
         case 'action': return renderActionBlock(block);
         default: return null;
       }
+    }
+
+    function renderHealthTipBlock(block) {
+      const el = document.createElement('div');
+      el.className = 'block-health-tip';
+
+      const severityIcons = { info: '💡', warning: '⚠️', alert: '🔴' };
+      const icon = block.icon || severityIcons[block.severity] || '💡';
+
+      el.innerHTML = `
+        <div class="med-header">
+          <div class="med-icon">${icon}</div>
+          <div>
+            <div class="med-title">${block.title || '健康提示'}</div>
+          </div>
+        </div>
+        <div class="prod-desc">${block.content || ''}</div>
+      `;
+
+      // "了解更多" button
+      const btn = document.createElement('button');
+      btn.className = 'action-btn';
+      btn.textContent = '💡 详细说说';
+      btn.addEventListener('click', () => {
+        sendQuick(`关于${block.title || '这个健康提示'}，能详细解释一下吗`);
+      });
+      el.appendChild(btn);
+
+      return el;
     }
 
     function renderMeditationBlock(block) {
@@ -704,6 +734,17 @@
         </div>
         ${stepsHtml}
       `;
+
+      // "开始练习" button
+      const btn = document.createElement('button');
+      btn.className = 'action-btn primary';
+      btn.textContent = `🧘 开始${duration || ''}${styleLabel}`;
+      btn.addEventListener('click', () => {
+        const styleLabel2 = styleMap[block.style] || '冥想';
+        sendQuick(`我想试${styleLabel2}，请引导我`);
+      });
+      el.appendChild(btn);
+
       return el;
     }
 
@@ -766,8 +807,13 @@
       const isPrimary = block.action === 'start_meditation' || block.action === 'view_product';
       const cls = isPrimary ? 'action-btn primary' : 'action-btn';
       const iconMap = {
-        start_meditation: '🧘', view_product: '🌿',
-        try_acupoint: '💆', view_history: '📊'
+        start_meditation: '🧘', do_breathing: '🌬️', try_music: '🎵',
+        view_meditation_music: '🎵', view_product: '🌿', buy_now: '🛒',
+        ask_tcm: '🏥', try_acupoint: '💆', try_acupressure: '💆',
+        view_sleep_tips: '😴', view_sleep_report: '📊',
+        check_heart_rate: '❤️', view_history: '📊',
+        talk_again: '💬', seek_help: '🆘',
+        view_recommendation: '✨', learn_more: '👉',
       };
       const icon = iconMap[block.action] || '👉';
 
@@ -781,16 +827,30 @@
 
     function handleAction(action, params) {
       const msgMap = {
+        // 冥想/呼吸
         start_meditation: params.style ? `我想试${params.style}冥想` : '我想开始冥想',
-        view_product: params.name ? `告诉我更多关于${params.name}的信息` : '我想了解合香产品',
-        try_acupoint: '教我一些可以按揉的穴位',
-        view_history: '看看我最近的健康数据',
+        do_breathing: params.duration ? `我想试${params.duration}分钟呼吸练习` : '我想试呼吸放松练习',
+        try_music: '推荐一些适合冥想的音乐曲目',
         view_meditation_music: '推荐一些适合冥想的音乐曲目',
         try_breathing: params.duration ? `我想试${params.duration}分钟呼吸练习` : '我想试呼吸放松练习',
+        // 睡眠
         view_sleep_tips: '给我一些改善睡眠的建议',
+        view_sleep_report: '帮我分析一下最近的睡眠情况',
+        // 穴位
+        try_acupoint: '教我一些可以按揉的穴位',
         try_acupressure: '教我几个助眠的穴位按摩方法',
-        learn_more: '请继续详细介绍',
+        // 健康
+        check_heart_rate: '帮我看看心率数据怎么样',
+        view_history: '看看我最近的健康数据',
+        // 倾诉/求助
+        talk_again: '我还想继续聊聊',
+        seek_help: '我需要更专业的帮助，你有什么建议吗',
+        // 产品
+        view_product: params.name ? `告诉我更多关于${params.name}的信息` : '我想了解合香产品',
+        buy_now: params.name ? `我想购买${params.name}` : '我想购买这个产品',
+        ask_tcm: '从中医角度帮我分析一下我的体质和适合的调养方式',
         view_recommendation: params.topic ? `推荐一些${params.topic}相关的内容` : '请给我更多推荐',
+        learn_more: '请继续详细介绍',
       };
       sendQuick(msgMap[action] || '请继续详细介绍');
     }
