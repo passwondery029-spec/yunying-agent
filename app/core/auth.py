@@ -240,6 +240,40 @@ class UserStore:
                 return None
             return dict(row)
 
+    async def update_user(self, user_id: str, updates: dict) -> bool:
+        """更新用户信息（紧急联系人等）"""
+        await self._ensure_init()
+        import aiosqlite, json
+        async with aiosqlite.connect(self.db_path) as db:
+            # 获取现有数据
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+            row = await cursor.fetchone()
+            if row is None:
+                return False
+            existing = dict(row)
+            # 合并更新
+            for k, v in updates.items():
+                existing[k] = json.dumps(v) if isinstance(v, (dict, list)) else v
+            # 写回
+            set_clauses = [f"{k} = ?" for k in updates.keys()]
+            values = [existing[k] for k in updates.keys()] + [user_id]
+            await db.execute(
+                f"UPDATE users SET {', '.join(set_clauses)} WHERE user_id = ?",
+                values,
+            )
+            await db.commit()
+            return True
+
+    async def delete_user(self, user_id: str) -> bool:
+        """删除用户账号（法规合规：用户数据自助删除）"""
+        await self._ensure_init()
+        import aiosqlite
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+            await db.commit()
+            return True
+
 
 # 全局单例
 user_store = UserStore()

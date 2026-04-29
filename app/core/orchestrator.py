@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from typing import AsyncGenerator
 
 from app.core.llm import chat_with_system, chat_stream_with_system, _has_api_key
+from app.core.crisis_intervention import (
+    detect_crisis_level, get_crisis_prompt_injection, check_crisis_response, log_crisis_event
+)
 from loguru import logger
 
 
@@ -330,6 +333,12 @@ async def orchestrate(
     # 1. 意图分类
     intent = await classify_intent(user_message, health_events)
 
+    # 1.1 危机干预检测 — 法规第十三条合规
+    crisis_level, crisis_score = detect_crisis_level(user_message)
+    crisis_injection = get_crisis_prompt_injection(crisis_level)
+    if crisis_score > 0:
+        logger.warning("检测到用户{}危机等级: {} 消息: {}", user_id, crisis_level, user_message[:50])
+
     # 1.5 情感节点：提取并注入
     from app.memory.store import memory as mem_store
     emotional_context = ""
@@ -392,6 +401,9 @@ async def orchestrate(
         profile_text = profile_to_prompt_text(profile_to_dict(profile))
         if profile_text:
             full_memory = f"{profile_text}\n\n{full_memory}" if full_memory else profile_text
+    # 危机提示注入
+    if crisis_injection:
+        full_memory = f"{crisis_injection}\n\n{full_memory}" if full_memory else crisis_injection
 
     # 2. 路由到对应引擎
     if intent == Intent.HEALTH:
@@ -519,6 +531,12 @@ async def orchestrate_stream(
     # 1. 意图分类（非流式，因为只需要一个词）
     intent = await classify_intent(user_message, health_events)
 
+    # 1.1 危机干预检测
+    crisis_level, crisis_score = detect_crisis_level(user_message)
+    crisis_injection = get_crisis_prompt_injection(crisis_level)
+    if crisis_score > 0:
+        logger.warning("流式-检测到用户{}危机等级: {} 消息: {}", user_id, crisis_level, user_message[:50])
+
     # 1.5 情感节点：提取并注入
     from app.memory.store import memory as mem_store
     emotional_context = ""
@@ -575,6 +593,9 @@ async def orchestrate_stream(
         profile_text = profile_to_prompt_text(profile_to_dict(profile))
         if profile_text:
             full_memory = f"{profile_text}\n\n{full_memory}" if full_memory else profile_text
+    # 危机提示注入
+    if crisis_injection:
+        full_memory = f"{crisis_injection}\n\n{full_memory}" if full_memory else crisis_injection
 
     # 2. 流式路由到对应引擎
     if intent == Intent.HEALTH:

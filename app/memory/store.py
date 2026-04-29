@@ -383,6 +383,18 @@ class MemoryStore:
                 await update_session_summary(session_id, new_summary)
                 logger.info(f"会话摘要已压缩: session={session_id}, 压缩了{len(to_compress)}条消息")
 
+    async def delete_user_data(self, user_id: str):
+        """删除用户所有数据（法规合规：用户数据自助删除）"""
+        import os, shutil
+        try:
+            user_dir = os.path.join(self.data_dir, "users", user_id)
+            if os.path.exists(user_dir):
+                shutil.rmtree(user_dir)
+                logger.info(f"用户数据已删除: {user_id}")
+        except Exception as e:
+            logger.error(f"删除用户数据失败: {e}")
+            raise
+
 
 # 全局单例
 memory = MemoryStore()

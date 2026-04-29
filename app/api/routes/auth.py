@@ -47,6 +47,40 @@ async def guest_login():
         if user is None:
             raise HTTPException(status_code=500, detail="创建访客账号失败")
         return create_token_pair(user["user_id"], user["username"])
+
+
+@router.post("/emergency-contact")
+async def set_emergency_contact(request: Request, user: TokenData = Depends(require_auth)):
+    """设置紧急联系人（法规第十二条合规）"""
+    try:
+        body = await request.json()
+        name = body.get("name", "").strip()
+        phone = body.get("phone", "").strip()
+        relation = body.get("relation", "").strip()
+        if not name or not phone:
+            raise HTTPException(status_code=400, detail="姓名和电话为必填项")
+        await user_store.update_user(user.user_id, {
+            "emergency_contact": {"name": name, "phone": phone, "relation": relation}
+        })
+        return {"status": "ok", "message": "紧急联系人已保存"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败: {e}")
+
+
+@router.delete("/account")
+async def delete_account(user: TokenData = Depends(require_auth)):
+    """删除账户及所有数据（法规第十六条合规）"""
+    try:
+        from app.memory.store import memory as mem_store
+        # 删除记忆数据
+        await mem_store.delete_user_data(user.user_id)
+        # 删除用户账号
+        await user_store.delete_user(user.user_id)
+        return {"status": "ok", "message": "账户及所有数据已删除"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除失败: {e}")
     except HTTPException:
         raise
     except Exception as e:

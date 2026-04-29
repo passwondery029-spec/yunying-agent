@@ -359,12 +359,79 @@
       .message { max-width: 90%; }
       .login-card { width: 90%; padding: 32px 24px; }
     }
+
+    /* AI标签 */
+    .ai-badge { display:inline-block; font-size:10px; background:rgba(103,58,183,0.1); color:var(--primary); padding:1px 5px; border-radius:3px; margin-left:4px; vertical-align:middle; }
+
+    /* 使用时长提醒弹窗 */
+    .usage-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .usage-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:340px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+    .usage-modal-card h3 { margin:0 0 12px; font-size:16px; color:#333; }
+    .usage-modal-card p { font-size:13px; color:#666; line-height:1.6; margin:0 0 16px; }
+    .usage-modal-card button { padding:10px 28px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:14px; cursor:pointer; }
+
+    /* 数据管理弹窗 */
+    .data-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .data-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:360px; text-align:left; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+    .data-modal-card h3 { margin:0 0 16px; font-size:16px; color:#333; text-align:center; }
+    .data-modal-card label { display:block; font-size:13px; color:#555; margin-bottom:6px; }
+    .data-modal-card input { width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; margin-bottom:12px; box-sizing:border-box; }
+    .data-modal-card .btn-row { display:flex; gap:8px; margin-top:16px; }
+    .data-modal-card .btn-row button { flex:1; padding:10px; border:none; border-radius:8px; font-size:13px; cursor:pointer; }
+    .data-modal-card .btn-danger { background:#e74c3c; color:white; }
+    .data-modal-card .btn-cancel { background:#eee; color:#333; }
+    .data-modal-card .btn-save { background:var(--primary); color:white; }
+
+    /* 服务协议弹窗 */
+    .terms-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .terms-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:420px; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+    .terms-modal-card h3 { margin:0 0 16px; font-size:16px; color:#333; text-align:center; }
+    .terms-modal-card p { font-size:12px; color:#555; line-height:1.8; margin:0 0 8px; }
+    .terms-modal-card button { display:block; margin:16px auto 0; padding:10px 28px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:14px; cursor:pointer; }
+    /* 时长提醒弹窗 */
+    .usage-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .usage-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.2); text-align:center; }
+    .usage-modal-card h3 { margin:0 0 12px; font-size:18px; }
+    .usage-modal-card p { font-size:13px; color:#555; line-height:1.8; margin:0 0 16px; }
+    .usage-modal-card button { padding:10px 28px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:14px; cursor:pointer; }
+    /* 数据管理弹窗 */
+    .data-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .data-modal-card { background:white; border-radius:16px; padding:24px; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+    .data-modal-card h3 { margin:0 0 16px; font-size:16px; text-align:center; }
+    .data-modal-card label { font-size:12px; color:#888; display:block; margin-bottom:4px; }
+    .data-modal-card input { width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; box-sizing:border-box; margin-bottom:8px; }
+    .btn-row { display:flex; gap:8px; justify-content:center; }
+    .btn-save { flex:1; padding:10px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:13px; cursor:pointer; }
+    .btn-cancel { flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:white; color:#555; font-size:13px; cursor:pointer; }
+    .btn-danger { flex:1; padding:10px; border:none; border-radius:8px; background:#e74c3c; color:white; font-size:13px; cursor:pointer; }
   </style>
 </head>
 <body>
 
+  <!-- ========== 年龄确认页 ========== -->
+  <div class="login-page" id="ageGatePage">
+    <div class="login-card">
+      <div class="logo">🪷</div>
+      <h2>云英</h2>
+      <p class="subtitle">身心健康陪伴</p>
+      <div style="margin-top:20px;text-align:left;font-size:13px;color:var(--text-secondary);line-height:1.8;padding:0 8px;">
+        <p>欢迎使用云英。使用本服务前，请注意：</p>
+        <p>1. 本服务由人工智能提供，不是真人或医疗专业人员</p>
+        <p>2. 本服务不构成医疗诊断或治疗建议</p>
+        <p>3. <b>本服务仅限18周岁及以上用户使用</b></p>
+        <p>4. 如遇心理危机，请拨打<strong>24小时心理援助热线：400-161-9995</strong></p>
+      </div>
+      <label style="display:flex;align-items:center;margin-top:18px;font-size:13px;cursor:pointer;gap:6px;">
+        <input type="checkbox" id="ageConfirm" style="width:16px;height:16px;accent-color:var(--primary);">
+        <span>我已年满18周岁，并同意<a href="#" onclick="showTerms();return false;" style="color:var(--primary);text-decoration:underline;">服务协议</a></span>
+      </label>
+      <button class="login-btn" onclick="confirmAge()" style="margin-top:16px;">确认进入</button>
+      <p id="ageError" style="color:#e74c3c;font-size:12px;margin-top:8px;display:none;"></p>
+    </div>
+  </div>
+
   <!-- ========== 加载页（访客登录中） ========== -->
-  <div class="login-page" id="loginPage">
+  <div class="login-page" id="loginPage" style="display:none;">
     <div class="login-card">
       <div class="logo">🪷</div>
       <h2>云英</h2>
@@ -380,10 +447,14 @@
     <div class="header">
       <div class="avatar">🪷</div>
       <div class="header-info">
-        <h1>云英</h1>
+        <h1>云英 <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:4px;vertical-align:middle;font-weight:400;">AI</span></h1>
         <p id="statusText">身心陪伴 · 随时倾听</p>
       </div>
-      <button class="logout-btn" onclick="logout()">退出</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span id="usageTimer" style="font-size:11px;color:rgba(255,255,255,0.6);display:none;"></span>
+        <button class="logout-btn" onclick="showDataOptions()" style="background:rgba(255,255,255,0.1);font-size:11px;padding:4px 8px;">⚙️</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+      </div>
     </div>
 
     <!-- 健康档案面板 -->
@@ -475,6 +546,7 @@
       <div class="toolbar">
         <button onclick="toggleHealthProfile()" id="hpToggleBtn">📋 健康档案</button>
         <button onclick="clearChat()">🗑️ 清空对话</button>
+        <button onclick="showDataOptions()" style="color:#e74c3c;">⚙️ 数据管理</button>
       </div>
     </div>
   </div>
@@ -1004,6 +1076,154 @@
             <div class="quick-action" onclick="sendQuick('请根据我的健康档案数据，帮我看看最近的身体状态怎么样')"><span class="icon">📊</span>看看我的健康状态</div>
           </div>
         </div>`;
+    }
+
+    // ========== 合规：年龄确认 ==========
+    function confirmAge() {
+      const checked = document.getElementById('ageConfirm').checked;
+      const errEl = document.getElementById('ageError');
+      if (!checked) {
+        errEl.textContent = '请确认您已年满18周岁并同意服务协议';
+        errEl.style.display = 'block';
+        return;
+      }
+      localStorage.setItem('yunying_age_confirmed', '1');
+      document.getElementById('ageGatePage').style.display = 'none';
+      document.getElementById('loginPage').style.display = 'flex';
+      doGuestLogin();
+    }
+
+    function showTerms() {
+      const modal = document.createElement('div');
+      modal.className = 'terms-modal';
+      modal.innerHTML = `
+        <div class="terms-modal-card">
+          <h3>云英服务协议</h3>
+          <p><b>一、服务性质</b></p>
+          <p>云英是由人工智能技术驱动的身心健康陪伴服务，不是医疗诊断或治疗服务，不能替代专业医疗、心理咨询或危机干预。</p>
+          <p><b>二、年龄限制</b></p>
+          <p>本服务仅限18周岁及以上用户使用。未成年人请勿使用本服务。</p>
+          <p><b>三、AI身份提示</b></p>
+          <p>您在与云英互动时，所有回复均由人工智能生成，云英不是真实自然人。</p>
+          <p><b>四、健康数据</b></p>
+          <p>您提供的健康数据仅用于提供个性化陪伴服务，不会用于模型训练。您可以随时导出或删除您的数据。</p>
+          <p><b>五、危机情况</b></p>
+          <p>如您正在经历心理危机或自伤想法，请立即拨打24小时心理援助热线：<b>400-161-9995</b>，或前往最近的医疗机构寻求帮助。</p>
+          <p><b>六、使用时长</b></p>
+          <p>为保护您的身心健康，连续使用超过2小时将收到提醒。建议保持与现实社交的平衡。</p>
+          <p><b>七、数据安全</b></p>
+          <p>您的交互数据将加密存储，不会向第三方提供。您有权复制、删除您的聊天记录和健康数据。</p>
+          <button onclick="this.closest('.terms-modal').remove()">我已阅读</button>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    // ========== 合规：使用时长追踪 ==========
+    let usageStartTime = null;
+    let usageInterval = null;
+    let lastUsageReminder = 0;
+
+    function startUsageTimer() {
+      usageStartTime = Date.now();
+      const timerEl = document.getElementById('usageTimer');
+      timerEl.style.display = 'inline';
+      usageInterval = setInterval(() => {
+        const minutes = Math.floor((Date.now() - usageStartTime) / 60000);
+        if (minutes >= 120 && (Date.now() - lastUsageReminder) > 30 * 60 * 1000) {
+          showUsageReminder(minutes);
+          lastUsageReminder = Date.now();
+        }
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        timerEl.textContent = h > 0 ? `${h}h${m}m` : `${m}m`;
+      }, 30000);
+    }
+
+    function showUsageReminder(minutes) {
+      const h = Math.floor(minutes / 60);
+      const modal = document.createElement('div');
+      modal.className = 'usage-modal';
+      modal.innerHTML = `
+        <div class="usage-modal-card">
+          <h3>⏰ 温馨提醒</h3>
+          <p>您已连续使用云英 ${h} 小时 ${minutes % 60} 分钟。<br><br>提醒您：云英是AI陪伴服务，建议适当休息，保持与现实生活的互动和社交平衡哦~</p>
+          <button onclick="this.closest('.usage-modal').remove()">我知道了</button>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    // ========== 合规：数据管理 ==========
+    function showDataOptions() {
+      const modal = document.createElement('div');
+      modal.className = 'data-modal';
+      modal.innerHTML = `
+        <div class="data-modal-card">
+          <h3>⚙️ 数据管理</h3>
+          <label>紧急联系人（法规要求）</label>
+          <input type="text" id="emergencyContact" placeholder="姓名 + 电话，如：张三 138xxxx0000" value="${localStorage.getItem('yunying_emergency_contact') || ''}">
+          <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
+          <p style="font-size:12px;color:#999;line-height:1.6;">根据法规，您有权复制或删除您的交互数据。删除后不可恢复。</p>
+          <div class="btn-row">
+            <button class="btn-save" onclick="saveEmergencyContact(this)">保存联系人</button>
+          </div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button class="btn-cancel" onclick="exportMyData()">📥 导出数据</button>
+            <button class="btn-danger" onclick="deleteMyData(this)">🗑️ 删除我的数据</button>
+          </div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button class="btn-cancel" onclick="this.closest('.data-modal').remove()">关闭</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    async function saveEmergencyContact(btn) {
+      const contact = document.getElementById('emergencyContact').value.trim();
+      localStorage.setItem('yunying_emergency_contact', contact);
+      // 也存到服务器
+      try {
+        await fetch(`${API_BASE}/api/v1/health/emergency-contact`, {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emergency_contact: contact })
+        });
+      } catch(e) {}
+      btn.textContent = '已保存 ✓';
+      setTimeout(() => { btn.textContent = '保存联系人'; }, 1500);
+    }
+
+    async function exportMyData() {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/health/my-data`, {
+          headers: authHeaders()
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { throw new Error('导出失败'); }
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `yunying_data_${new Date().toISOString().slice(0,10)}.json`;
+        a.click(); URL.revokeObjectURL(url);
+      } catch(e) {
+        alert('导出失败: ' + e.message);
+      }
+    }
+
+    async function deleteMyData(btn) {
+      if (!confirm('确定删除所有数据？此操作不可恢复！')) return;
+      if (!confirm('再次确认：您的聊天记录、健康档案、账户信息将被永久删除。')) return;
+      try {
+        await fetch(`${API_BASE}/api/v1/health/my-data`, {
+          method: 'DELETE',
+          headers: authHeaders()
+        });
+        localStorage.clear();
+        alert('数据已删除，页面将刷新。');
+        location.reload();
+      } catch(e) {
+        alert('删除失败: ' + e.message);
+      }
     }
   </script>
 </body>
