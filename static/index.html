@@ -363,13 +363,6 @@
     /* AI标签 */
     .ai-badge { display:inline-block; font-size:10px; background:rgba(103,58,183,0.1); color:var(--primary); padding:1px 5px; border-radius:3px; margin-left:4px; vertical-align:middle; }
 
-    /* 使用时长提醒弹窗 */
-    .usage-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
-    .usage-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:340px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
-    .usage-modal-card h3 { margin:0 0 12px; font-size:16px; color:#333; }
-    .usage-modal-card p { font-size:13px; color:#666; line-height:1.6; margin:0 0 16px; }
-    .usage-modal-card button { padding:10px 28px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:14px; cursor:pointer; }
-
     /* 数据管理弹窗 */
     .data-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
     .data-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:360px; text-align:left; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
@@ -389,11 +382,6 @@
     .terms-modal-card p { font-size:12px; color:#555; line-height:1.8; margin:0 0 8px; }
     .terms-modal-card button { display:block; margin:16px auto 0; padding:10px 28px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:14px; cursor:pointer; }
     /* 时长提醒弹窗 */
-    .usage-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
-    .usage-modal-card { background:white; border-radius:16px; padding:28px 24px; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.2); text-align:center; }
-    .usage-modal-card h3 { margin:0 0 12px; font-size:18px; }
-    .usage-modal-card p { font-size:13px; color:#555; line-height:1.8; margin:0 0 16px; }
-    .usage-modal-card button { padding:10px 28px; border:none; border-radius:8px; background:var(--primary); color:white; font-size:14px; cursor:pointer; }
     /* 数据管理弹窗 */
     .data-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
     .data-modal-card { background:white; border-radius:16px; padding:24px; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
@@ -1141,15 +1129,16 @@
 
     function showUsageReminder(minutes) {
       const h = Math.floor(minutes / 60);
-      const modal = document.createElement('div');
-      modal.className = 'usage-modal';
-      modal.innerHTML = `
-        <div class="usage-modal-card">
-          <h3>⏰ 温馨提醒</h3>
-          <p>您已连续使用云英 ${h} 小时 ${minutes % 60} 分钟。<br><br>提醒您：云英是AI陪伴服务，建议适当休息，保持与现实生活的互动和社交平衡哦~</p>
-          <button onclick="this.closest('.usage-modal').remove()">我知道了</button>
-        </div>`;
-      document.body.appendChild(modal);
+      // 法规要求2小时提醒，但用对话内自然提醒代替弹窗
+      const reminderText = `你今天已经和我聊了${h}个多小时啦~我很开心能陪你，但也想提醒你记得活动活动、喝口水，和身边的朋友也聊聊天哦 😊`;
+      // 作为系统消息插入对话
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'system-msg';
+      msgDiv.style.cssText = 'text-align:center;padding:10px;margin:8px 0;font-size:13px;color:var(--primary);background:rgba(103,58,183,0.06);border-radius:12px;';
+      msgDiv.textContent = reminderText;
+      const chatMessages = document.getElementById('chatMessages');
+      if (chatMessages) chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     // ========== 合规：数据管理 ==========
