@@ -47,6 +47,11 @@ async def guest_login():
         if user is None:
             raise HTTPException(status_code=500, detail="创建访客账号失败")
         return create_token_pair(user["user_id"], user["username"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"访客登录失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="访客登录失败，请稍后重试")
 
 
 @router.post("/emergency-contact")
@@ -79,13 +84,11 @@ async def delete_account(user: TokenData = Depends(require_auth)):
         # 删除用户账号
         await user_store.delete_user(user.user_id)
         return {"status": "ok", "message": "账户及所有数据已删除"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除失败: {e}")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"访客登录失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="访客登录失败，请稍后重试")
+        logger.error(f"删除账户失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"删除失败: {e}")
 
 
 @router.post("/register", response_model=TokenResponse)
