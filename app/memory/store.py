@@ -1,6 +1,6 @@
-"""记忆系统 — 短期记忆 + 长期记忆 + 健康快照 + 对话摘要 + 情感节点
+"""记忆系统 — 短期记忆 + 长期记忆 + 健康快照 + 对话摘要 + 情感节点 + 关系层级
 
-v3: 新增情感节点记忆，记录用户的关键情绪事件，下次对话能主动关心
+v4: 新增关系层级系统，用户与云英的关系随交互加深而升级
 """
 
 from datetime import datetime
@@ -8,6 +8,10 @@ from pydantic import BaseModel, Field
 
 from app.health.models import HealthMetrics, HealthEvent, UserHealthBaseline
 from app.engines.health.engine import build_health_snapshot
+from app.core.relationship import (
+    Relationship, RelationLevel, update_relationship,
+    get_level_prompt_suffix, get_level,
+)
 from loguru import logger
 
 
@@ -61,6 +65,8 @@ class MemoryStore:
     当前会话状态 → 内存缓存（重启后从 SQLite 恢复）
     """
 
+    # --- 关系层级 ---
+
     def __init__(self):
         # session_id -> SessionState（内存缓存）
         self._sessions: dict[str, SessionState] = {}
@@ -68,6 +74,8 @@ class MemoryStore:
         self._profiles: dict[str, UserProfile] = {}
         # user_id -> latest HealthMetrics（内存缓存）
         self._latest_metrics: dict[str, HealthMetrics] = {}
+        # user_id -> Relationship（内存缓存）
+        self._relationships: dict[str, Relationship] = {}
         # 用户级并发锁
         self._user_locks: dict[str, any] = {}
         self._lock_creation_lock = None  # 延迟初始化
@@ -187,6 +195,45 @@ class MemoryStore:
         """获取用户最新健康指标（内存缓存）"""
         return self._latest_metrics.get(user_id)
 
+    def get_recent_metrics(self, user_id: str, limit: int = 2) -> list[dict]:
+        """获取用户最近的 N 次健康指标记录（用于趋势分析）
+
+        从数据库中读取最近的 metrics 记录，返回 dict 列表（最新在前）
+        """
+        import json
+        records = []
+        try:
+            import asyncio
+            from app.core.database import database
+
+            async def _fetch():
+                rows = await database.fetch_all(
+                    "SELECT data FROM health_metrics WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (user_id, limit)
+                )
+                return [json.loads(row["data"]) if isinstance(row["data"], str) else row["data"] for row in rows]
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                # 已在异步上下文中，使用线程安全方式
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    records = pool.submit(asyncio.run, _fetch()).result()
+            else:
+                records = asyncio.run(_fetch())
+        except Exception as e:
+            logger.warning(f"获取最近metrics失败: {e}")
+            # fallback: 用内存缓存的数据构造单条
+            cur = self.get_metrics(user_id)
+            if cur:
+                records = [cur.__dict__ if hasattr(cur, '__dict__') else dict(cur)]
+
+        return records
+
     def update_events(self, session_id: str, user_id: str, events: list[HealthEvent]) -> None:
         """更新会话中的活跃健康事件"""
         session = self.get_session(session_id, user_id)
@@ -276,6 +323,29 @@ class MemoryStore:
 
         lines.append("\n提示：带★的节点是你还没主动关心过的，如果话题相关，可以自然地问一句，比如'上次说的那个失眠，最近好点了吗？'")
         return "\n".join(lines)
+
+    # --- 关系层级 ---
+
+    def get_relationship(self, user_id: str) -> Relationship:
+        """获取用户关系状态"""
+        if user_id not in self._relationships:
+            self._relationships[user_id] = Relationship(user_id=user_id)
+        return self._relationships[user_id]
+
+    def update_relationship_score(self, user_id: str, user_message: str) -> tuple[Relationship, bool]:
+        """更新关系积分和层级
+
+        Returns:
+            (更新后的关系, 是否刚升级)
+        """
+        rel = self.get_relationship(user_id)
+        return update_relationship(rel, user_message)
+
+    def get_relationship_prompt(self, user_id: str) -> str:
+        """获取关系层级的 prompt 注入文本"""
+        rel = self.get_relationship(user_id)
+        return get_level_prompt_suffix(rel.level)
+
 
     # --- 摘要压缩 ---
 

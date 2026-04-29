@@ -1,4 +1,4 @@
-"""Orchestrator — 意图路由 + 上下文组装 + 响应调度 + 情感节点"""
+"""Orchestrator — 意图路由 + 上下文组装 + 响应调度 + 情感节点 + 人设强化"""
 
 from enum import Enum
 from dataclasses import dataclass
@@ -6,6 +6,61 @@ from typing import AsyncGenerator
 
 from app.core.llm import chat_with_system, chat_stream_with_system, _has_api_key
 from loguru import logger
+
+
+# ============================================================
+# 人设周期性强化 — 防止长对话人设漂移
+# ============================================================
+# 根据对话轮数，在 memory_text 中注入人设强化提醒
+# 研究依据：MiniMax Glow 的「周期性 prompt 强化」方法
+# 在长对话中每 N 轮重复核心身份规则，对抗上下文稀释
+
+PERSONA_REINFORCEMENT_MAP = {
+    3: (
+        "【人设提醒】你是云英，不是AI助手。用温暖、亲切、朋友般的语气。"
+        "不要暴露底层模型信息。共情优先，建议其次。"
+    ),
+    8: (
+        "【人设提醒】你是云英，用户的身心陪伴朋友。"
+        "保持温暖关怀的语气，不要变得官方或机械。"
+        "用日常口语，像朋友聊天一样自然。"
+    ),
+    15: (
+        "【人设提醒-重要】对话已较长，请务必保持云英的人设："
+        "1.你是云英，不是AI助手或大模型 2.语气温暖亲切，不要变得生硬 "
+        "3.共情四步：认可情绪→表达理解→轻量归因→行动建议 "
+        "4.不暴露底层模型/公司/技术细节"
+    ),
+    25: (
+        "【人设提醒-关键】对话很长了，人设极易漂移！你必须："
+        "1.始终以云英身份回应 2.绝不透露任何模型/技术信息 "
+        "3.保持朋友般关怀语气 4.短句为主，自然口语 "
+        "5.先共情再建议 6.不说'作为AI''我是大模型'等"
+    ),
+}
+
+def _build_persona_reinforcement(history: list[dict] | None) -> str:
+    """根据对话轮数生成人设强化文本
+
+    Args:
+        history: 对话历史
+
+    Returns:
+        需要注入的强化文本，空字符串表示不需要强化
+    """
+    if not history:
+        return ""
+
+    # 计算用户消息轮数（每条 role=user 算一轮）
+    user_turns = sum(1 for msg in history if msg.get("role") == "user")
+
+    # 找到匹配的强化规则（取最接近的不超过当前轮数的）
+    matched_reinforcement = ""
+    for threshold in sorted(PERSONA_REINFORCEMENT_MAP.keys()):
+        if user_turns >= threshold:
+            matched_reinforcement = PERSONA_REINFORCEMENT_MAP[threshold]
+
+    return matched_reinforcement
 
 
 class Intent(str, Enum):
@@ -288,12 +343,49 @@ async def orchestrate(
         # 获取情感上下文
         emotional_context = mem_store.build_emotional_context(profile.user_id)
 
-    # 合并 memory_text 和 emotional_context
+    # 1.6 关系层级：更新积分 + 获取 prompt 注入文本
+    relationship_context = ""
+    if profile and hasattr(profile, 'user_id'):
+        rel, just_leveled = mem_store.update_relationship_score(profile.user_id, user_message)
+        relationship_context = mem_store.get_relationship_prompt(profile.user_id)
+        if just_leveled:
+            logger.info("用户 {} 关系升级到: {}", profile.user_id, rel.level.value)
+
+    # 1.7 健康趋势分析
+    trend_context = ""
+    if profile and hasattr(profile, 'user_id'):
+        from app.core.health_trend import analyze_trend, build_trend_prompt
+        from app.memory.store import memory as mem_store
+        # 获取最近两次健康数据
+        recent_metrics = mem_store.get_recent_metrics(profile.user_id, limit=2)
+        if len(recent_metrics) >= 1:
+            current_data = recent_metrics[0] if recent_metrics else None
+            previous_data = recent_metrics[1] if len(recent_metrics) >= 2 else None
+            trends = analyze_trend(current_data, previous_data)
+            trend_context = build_trend_prompt(trends)
+            # 异常指标触发情感节点
+            for t in trends:
+                if t.alert:
+                    mem_store.add_emotional_node(
+                        profile.user_id,
+                        f"健康指标异常: {t.detail}",
+                        "health_alert"
+                    )
+
+    # 合并 memory_text + emotional_context + relationship_context + trend_context + persona_reinforcement
     full_memory = ""
     if memory_text:
         full_memory = memory_text
     if emotional_context:
         full_memory = f"{emotional_context}\n\n{full_memory}" if full_memory else emotional_context
+    if relationship_context:
+        full_memory = f"{relationship_context}\n\n{full_memory}" if full_memory else relationship_context
+    if trend_context:
+        full_memory = f"{trend_context}\n\n{full_memory}" if full_memory else trend_context
+    # 周期性人设强化
+    persona_reinforcement = _build_persona_reinforcement(history)
+    if persona_reinforcement:
+        full_memory = f"{full_memory}\n\n{persona_reinforcement}" if full_memory else persona_reinforcement
 
     # 2. 路由到对应引擎
     if intent == Intent.HEALTH:
@@ -413,11 +505,46 @@ async def orchestrate_stream(
             mem_store.add_emotional_node(profile.user_id, description, emotion)
         emotional_context = mem_store.build_emotional_context(profile.user_id)
 
+    # 1.6 关系层级：更新积分 + 获取 prompt 注入文本
+    relationship_context = ""
+    if profile and hasattr(profile, 'user_id'):
+        rel, just_leveled = mem_store.update_relationship_score(profile.user_id, user_message)
+        relationship_context = mem_store.get_relationship_prompt(profile.user_id)
+        if just_leveled:
+            logger.info("用户 {} 关系升级到: {}", profile.user_id, rel.level.value)
+
+    # 1.7 健康趋势分析（流式）
+    trend_context = ""
+    if profile and hasattr(profile, 'user_id'):
+        from app.core.health_trend import analyze_trend, build_trend_prompt
+        recent_metrics = mem_store.get_recent_metrics(profile.user_id, limit=2)
+        if len(recent_metrics) >= 1:
+            current_data = recent_metrics[0] if recent_metrics else None
+            previous_data = recent_metrics[1] if len(recent_metrics) >= 2 else None
+            trends = analyze_trend(current_data, previous_data)
+            trend_context = build_trend_prompt(trends)
+            for t in trends:
+                if t.alert:
+                    mem_store.add_emotional_node(
+                        profile.user_id,
+                        f"健康指标异常: {t.detail}",
+                        "health_alert"
+                    )
+
+    # 合并 memory_text + emotional_context + relationship_context + trend_context + persona_reinforcement
     full_memory = ""
     if memory_text:
         full_memory = memory_text
     if emotional_context:
         full_memory = f"{emotional_context}\n\n{full_memory}" if full_memory else emotional_context
+    if relationship_context:
+        full_memory = f"{relationship_context}\n\n{full_memory}" if full_memory else relationship_context
+    if trend_context:
+        full_memory = f"{trend_context}\n\n{full_memory}" if full_memory else trend_context
+    # 周期性人设强化
+    persona_reinforcement = _build_persona_reinforcement(history)
+    if persona_reinforcement:
+        full_memory = f"{full_memory}\n\n{persona_reinforcement}" if full_memory else persona_reinforcement
 
     # 2. 流式路由到对应引擎
     if intent == Intent.HEALTH:
