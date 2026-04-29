@@ -104,6 +104,7 @@ async def init_db():
                 main_concerns TEXT DEFAULT '[]',
                 emotion_trend TEXT DEFAULT '[]',
                 baseline_json TEXT DEFAULT '{}',
+                last_meditation TEXT DEFAULT NULL,
                 last_updated  TEXT DEFAULT (datetime('now')),
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
             );
@@ -353,7 +354,7 @@ async def get_profile(user_id: str) -> Optional[dict]:
 
 async def upsert_profile(user_id: str, constitution: str = None,
                          main_concerns: list = None, emotion_trend: list = None,
-                         baseline: dict = None):
+                         baseline: dict = None, last_meditation: str = None):
     """更新用户画像"""
     async with aiosqlite.connect(DB_PATH) as db:
         # 先检查是否存在
@@ -376,6 +377,9 @@ async def upsert_profile(user_id: str, constitution: str = None,
             if baseline is not None:
                 updates.append("baseline_json = ?")
                 params.append(json.dumps(baseline, ensure_ascii=False))
+            if last_meditation is not None:
+                updates.append("last_meditation = ?")
+                params.append(last_meditation)
             if updates:
                 updates.append("last_updated = datetime('now')")
                 params.append(user_id)
@@ -385,14 +389,15 @@ async def upsert_profile(user_id: str, constitution: str = None,
                 )
         else:
             await db.execute("""
-                INSERT INTO user_profiles (user_id, constitution, main_concerns, emotion_trend, baseline_json)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO user_profiles (user_id, constitution, main_concerns, emotion_trend, baseline_json, last_meditation)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 user_id,
                 constitution or "未测评",
                 json.dumps(main_concerns or [], ensure_ascii=False),
                 json.dumps(emotion_trend or [], ensure_ascii=False),
                 json.dumps(baseline or {}, ensure_ascii=False),
+                last_meditation,
             ))
         await db.commit()
 

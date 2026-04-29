@@ -30,6 +30,10 @@ class ManualHealthInput(BaseModel):
     stress_level: str | None = Field(None, description="压力自评: low/moderate/high")
     # 当前心情
     mood: str | None = Field(None, description="当前心情描述，如：平静/焦虑/低落/开心/烦躁")
+    # 情绪趋势（前端下拉选项）
+    emotion_trend: str | None = Field(None, description="情绪趋势: 愉快/平稳/略低落/焦虑/烦躁/疲惫")
+    # 上次冥想
+    last_meditation: str | None = Field(None, description="上次冥想: 今天/昨天/3天内/一周内/很久没做了")
 
 
 class HealthProfileResponse(BaseModel):
@@ -72,6 +76,8 @@ async def submit_manual_health(
         "skin_temp": data.temperature,
         "stress_level": data.stress_level,
         "mood": data.mood,
+        "emotion_trend": data.emotion_trend,
+        "last_meditation": data.last_meditation,
     }
     await save_metrics(user_id, metrics_dict)
 

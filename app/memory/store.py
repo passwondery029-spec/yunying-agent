@@ -106,6 +106,25 @@ class MemoryStore:
                 constitution=db_profile.get("constitution", "未测评"),
                 main_concerns=db_profile.get("main_concerns", []),
             )
+            # 补充完整字段 — 之前丢失了这些
+            if db_profile.get("emotion_trend"):
+                profile.emotion_trend = db_profile["emotion_trend"]
+            if db_profile.get("last_meditation"):
+                profile.last_meditation = db_profile["last_meditation"]
+            if db_profile.get("healing_progress"):
+                profile.healing_progress = db_profile["healing_progress"]
+            # baseline 从 health_metrics 重建
+            from app.core.database import get_latest_metrics
+            latest = await get_latest_metrics(user_id)
+            if latest:
+                profile.baseline = UserHealthBaseline(
+                    user_id=user_id,
+                    avg_heart_rate=latest.get("heart_rate", 0) or 0,
+                    avg_hrv=latest.get("hrv", 0) or 0,
+                    avg_sleep_hours=latest.get("sleep_hours", 0) or 0,
+                    avg_body_temp=latest.get("body_temp", 0) or 0,
+                    avg_steps=latest.get("steps", 0) or 0,
+                )
         else:
             profile = UserProfile(user_id=user_id)
 
@@ -125,6 +144,8 @@ class MemoryStore:
             user_id,
             constitution=profile.constitution if profile.constitution != "未测评" else None,
             main_concerns=profile.main_concerns if profile.main_concerns else None,
+            emotion_trend=profile.emotion_trend if profile.emotion_trend != "未记录" else None,
+            last_meditation=profile.last_meditation if profile.last_meditation != "未记录" else None,
         )
 
         self._profiles[user_id] = profile
