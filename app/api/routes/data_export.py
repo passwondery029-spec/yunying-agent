@@ -129,3 +129,26 @@ async def get_stats(
         ]
     
     return JSONResponse(content=stats)
+
+
+@router.get("/guard-cases")
+async def get_guard_cases(
+    admin_key: str = Query(..., description="管理员密钥"),
+    limit: int = Query(100, description="最多返回条数", ge=1, le=1000),
+):
+    """
+    查看护栏拦截案例（为自进化护栏积累数据）
+    
+    用法: GET /api/v1/data/guard-cases?admin_key=xxx&limit=100
+    """
+    _check_admin(admin_key)
+    
+    from app.core.persona_guard import get_guard_cases, get_guard_stats
+    
+    cases = get_guard_cases(limit=limit)
+    stats = get_guard_stats()
+    
+    return JSONResponse(content={
+        "stats": stats,
+        "cases": cases,
+    })

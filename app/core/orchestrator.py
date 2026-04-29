@@ -386,6 +386,12 @@ async def orchestrate(
     persona_reinforcement = _build_persona_reinforcement(history)
     if persona_reinforcement:
         full_memory = f"{full_memory}\n\n{persona_reinforcement}" if full_memory else persona_reinforcement
+    # 用户画像注入
+    if profile:
+        from app.core.user_profile import profile_to_dict, profile_to_prompt_text
+        profile_text = profile_to_prompt_text(profile_to_dict(profile))
+        if profile_text:
+            full_memory = f"{profile_text}\n\n{full_memory}" if full_memory else profile_text
 
     # 2. 路由到对应引擎
     if intent == Intent.HEALTH:
@@ -464,11 +470,29 @@ async def orchestrate(
 
     # 3. Persona Guard — 人设输出校验
     from app.core.persona_guard import check_persona
-    passed, reply = check_persona(reply)
+    passed, reply = check_persona(reply, user_message=user_message)
     if not passed:
         logger.warning("Persona guard corrected reply for user {}", user_id)
 
-    # 4. 构建结果
+    # 4. 用户画像自动提取（后台异步，不阻塞回复）
+    try:
+        from app.core.user_profile import extract_profile_updates, apply_updates_to_profile
+        profile_dict = {}
+        if profile:
+            from app.core.user_profile import profile_to_dict
+            profile_dict = profile_to_dict(profile)
+        # 提取更新（异步，不阻塞）
+        import asyncio
+        asyncio.create_task(_update_user_profile_background(
+            user_id=user_id,
+            profile=profile,
+            profile_dict=profile_dict,
+            history=history,
+        ))
+    except Exception as e:
+        logger.debug(f"画像提取调度失败（不影响回复）: {e}")
+
+    # 5. 构建结果
     return OrchestratorResult(
         reply=reply,
         intent=intent,
@@ -545,6 +569,12 @@ async def orchestrate_stream(
     persona_reinforcement = _build_persona_reinforcement(history)
     if persona_reinforcement:
         full_memory = f"{full_memory}\n\n{persona_reinforcement}" if full_memory else persona_reinforcement
+    # 用户画像注入
+    if profile:
+        from app.core.user_profile import profile_to_dict, profile_to_prompt_text
+        profile_text = profile_to_prompt_text(profile_to_dict(profile))
+        if profile_text:
+            full_memory = f"{profile_text}\n\n{full_memory}" if full_memory else profile_text
 
     # 2. 流式路由到对应引擎
     if intent == Intent.HEALTH:
@@ -613,3 +643,48 @@ async def orchestrate_stream(
             memory_text=full_memory,
         ):
             yield chunk
+
+    # 流式完成后也做画像提取（后台异步）
+    try:
+        from app.core.user_profile import extract_profile_updates, apply_updates_to_profile, profile_to_dict
+        import asyncio
+        if profile:
+            asyncio.create_task(_update_user_profile_background(
+                user_id=user_id,
+                profile=profile,
+                profile_dict=profile_to_dict(profile),
+                history=history,
+            ))
+    except Exception:
+        pass
+
+
+async def _update_user_profile_background(
+    user_id: str,
+    profile,
+    profile_dict: dict,
+    history: list[dict],
+):
+    """后台异步更新用户画像，不阻塞回复"""
+    try:
+        from app.core.llm import _get_client
+        client = _get_client()
+        if not client:
+            return
+
+        updates = await extract_profile_updates(
+            llm_client=client,
+            current_profile=profile_dict,
+            recent_messages=history[-10:],
+        )
+
+        if updates and profile:
+            apply_updates_to_profile(profile, updates)
+            # 持久化
+            from app.memory.store import MemoryStore
+            mem_store = MemoryStore()
+            await mem_store.update_profile(user_id, **updates)
+            logger.info(f"📊 用户画像已更新: {updates}")
+
+    except Exception as e:
+        logger.debug(f"画像后台更新失败（不影响使用）: {e}")
