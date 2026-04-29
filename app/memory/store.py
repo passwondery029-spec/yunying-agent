@@ -1,7 +1,6 @@
-"""记忆系统 — 短期记忆 + 长期记忆 + 健康快照 + 对话摘要
+"""记忆系统 — 短期记忆 + 长期记忆 + 健康快照 + 对话摘要 + 情感节点
 
-v2: 对话历史持久化到 SQLite，用户画像持久化到 SQLite
-内存仅保留当前会话的活跃状态作为缓存
+v3: 新增情感节点记忆，记录用户的关键情绪事件，下次对话能主动关心
 """
 
 from datetime import datetime
@@ -14,6 +13,14 @@ from loguru import logger
 
 # === 数据模型 ===
 
+class EmotionalNode(BaseModel):
+    """情感节点 — 用户的关键情绪事件"""
+    content: str          # 事件描述，如"上周失眠严重，半夜反复醒来"
+    emotion: str          # 主情绪标签，如"焦虑""低落""压力"
+    timestamp: str        # 发生时间
+    follow_up_done: bool = False  # 是否已经主动关心过
+
+
 class UserProfile(BaseModel):
     """用户长期画像"""
     user_id: str
@@ -25,6 +32,7 @@ class UserProfile(BaseModel):
     baseline: UserHealthBaseline = Field(default_factory=lambda: UserHealthBaseline(user_id="default"))
     purchased_products: list[str] = Field(default_factory=list)
     already_recommended: bool = False
+    emotional_nodes: list[EmotionalNode] = Field(default_factory=list)  # 情感节点
 
 
 class SessionState(BaseModel):
@@ -207,6 +215,67 @@ class MemoryStore:
             emotion_trend=profile.emotion_trend,
             last_meditation=profile.last_meditation,
         )
+
+    # --- 情感节点记忆 ---
+
+    def add_emotional_node(self, user_id: str, content: str, emotion: str):
+        """记录用户的关键情绪事件"""
+        profile = self._profiles.get(user_id)
+        if profile is None:
+            return
+
+        # 去重：如果已有类似内容则不重复添加
+        for node in profile.emotional_nodes:
+            if node.content == content:
+                return
+
+        node = EmotionalNode(
+            content=content,
+            emotion=emotion,
+            timestamp=datetime.now().isoformat(),
+            follow_up_done=False,
+        )
+        profile.emotional_nodes.append(node)
+
+        # 保留最近 20 个节点
+        if len(profile.emotional_nodes) > 20:
+            profile.emotional_nodes = profile.emotional_nodes[-20:]
+
+        logger.info(f"情感节点已记录: user={user_id}, emotion={emotion}")
+
+    def get_pending_follow_ups(self, user_id: str, limit: int = 2) -> list[EmotionalNode]:
+        """获取尚未主动关心过的情感节点"""
+        profile = self._profiles.get(user_id)
+        if profile is None:
+            return []
+
+        pending = [n for n in profile.emotional_nodes if not n.follow_up_done]
+        return pending[:limit]
+
+    def mark_follow_up_done(self, user_id: str, content: str):
+        """标记某个情感节点已关心过"""
+        profile = self._profiles.get(user_id)
+        if profile is None:
+            return
+
+        for node in profile.emotional_nodes:
+            if node.content == content and not node.follow_up_done:
+                node.follow_up_done = True
+                break
+
+    def build_emotional_context(self, user_id: str) -> str:
+        """构建情感节点上下文，注入到 system prompt 中"""
+        profile = self._profiles.get(user_id)
+        if profile is None or not profile.emotional_nodes:
+            return ""
+
+        lines = ["## 用户的关键情绪记忆（你记得这些，适时自然关心）"]
+        for node in profile.emotional_nodes[-5:]:  # 只取最近5个
+            status = "✓已关心" if node.follow_up_done else "★未关心"
+            lines.append(f"- [{status}] {node.emotion}：{node.content}（{node.timestamp[:10]}）")
+
+        lines.append("\n提示：带★的节点是你还没主动关心过的，如果话题相关，可以自然地问一句，比如'上次说的那个失眠，最近好点了吗？'")
+        return "\n".join(lines)
 
     # --- 摘要压缩 ---
 

@@ -1,10 +1,11 @@
-"""Orchestrator — 意图路由 + 上下文组装 + 响应调度"""
+"""Orchestrator — 意图路由 + 上下文组装 + 响应调度 + 情感节点"""
 
 from enum import Enum
 from dataclasses import dataclass
 from typing import AsyncGenerator
 
 from app.core.llm import chat_with_system, chat_stream_with_system, _has_api_key
+from loguru import logger
 
 
 class Intent(str, Enum):
@@ -36,7 +37,35 @@ INTENT_ROUTER_PROMPT = """你是一个意图分类器。根据用户的消息，
 返回格式：只返回 health / healing / product / general 中的一个"""
 
 
-@dataclass
+# 情绪提取关键词
+_EMOTION_KEYWORDS = {
+    "焦虑": "焦虑", "压力": "压力", "烦": "烦躁", "累": "疲惫",
+    "难过": "难过", "伤心": "伤心", "抑郁": "低落", "害怕": "恐惧",
+    "孤独": "孤独", "不开心": "不开心", "心烦": "心烦", "委屈": "委屈",
+    "想哭": "想哭", "哭": "悲伤", "失眠": "失眠困扰", "紧张": "紧张",
+    "害怕": "恐惧", "暴躁": "暴躁", "低落": "低落", "郁闷": "郁闷",
+    "喘不过气": "压力过大", "睡不着": "失眠困扰", "半夜醒": "失眠困扰",
+}
+
+
+def _extract_emotional_node(user_message: str) -> tuple[str, str] | None:
+    """从用户消息中提取关键情绪事件
+
+    Returns:
+        (情绪标签, 事件描述) 或 None
+    """
+    msg = user_message.lower()
+
+    for keyword, emotion in _EMOTION_KEYWORDS.items():
+        if keyword in msg:
+            # 提取简短描述（最多40字）
+            description = user_message[:40] if len(user_message) <= 40 else user_message[:37] + "..."
+            return (emotion, description)
+
+    return None
+
+
+
 class OrchestratorResult:
     """调度结果"""
     reply: str
@@ -246,6 +275,26 @@ async def orchestrate(
     # 1. 意图分类
     intent = await classify_intent(user_message, health_events)
 
+    # 1.5 情感节点：提取并注入
+    from app.memory.store import memory as mem_store
+    emotional_context = ""
+    if profile and hasattr(profile, 'user_id'):
+        # 提取情绪事件
+        extracted = _extract_emotional_node(user_message)
+        if extracted:
+            emotion, description = extracted
+            mem_store.add_emotional_node(profile.user_id, description, emotion)
+
+        # 获取情感上下文
+        emotional_context = mem_store.build_emotional_context(profile.user_id)
+
+    # 合并 memory_text 和 emotional_context
+    full_memory = ""
+    if memory_text:
+        full_memory = memory_text
+    if emotional_context:
+        full_memory = f"{emotional_context}\n\n{full_memory}" if full_memory else emotional_context
+
     # 2. 路由到对应引擎
     if intent == Intent.HEALTH:
         from app.engines.health.engine import health_chat
@@ -262,7 +311,7 @@ async def orchestrate(
             user_id=user_id,
             history=history,
             health_snapshot=health_snapshot,
-            memory_text=memory_text,
+            memory_text=full_memory,
         )
         engine = "health"
 
@@ -280,7 +329,7 @@ async def orchestrate(
             user_id=user_id,
             history=history,
             healing_snapshot=healing_snapshot,
-            memory_text=memory_text,
+            memory_text=full_memory,
         )
         engine = "healing"
 
@@ -298,14 +347,12 @@ async def orchestrate(
             user_id=user_id,
             history=history,
             product_snapshot=product_snapshot,
-            memory_text=memory_text,
+            memory_text=full_memory,
         )
         engine = "product"
 
     else:
         # 通用闲聊，走疗愈引擎的轻量模式
-        # 仍注入基础健康快照（让AI知道用户的基本状态）
-        # 但用轻量模式：不注入知识库
         from app.engines.healing.engine import healing_chat
 
         light_snapshot = _build_healing_snapshot_for_engine(
@@ -318,12 +365,18 @@ async def orchestrate(
             user_id=user_id,
             history=history,
             healing_snapshot=light_snapshot,
-            light_mode=True,  # 轻量模式：不注入知识库
-            memory_text=memory_text,
+            light_mode=True,
+            memory_text=full_memory,
         )
         engine = "healing(general)"
 
-    # 3. 构建结果
+    # 3. Persona Guard — 人设输出校验
+    from app.core.persona_guard import check_persona
+    passed, reply = check_persona(reply)
+    if not passed:
+        logger.warning("Persona guard corrected reply for user {}", user_id)
+
+    # 4. 构建结果
     return OrchestratorResult(
         reply=reply,
         intent=intent,
@@ -350,6 +403,22 @@ async def orchestrate_stream(
     # 1. 意图分类（非流式，因为只需要一个词）
     intent = await classify_intent(user_message, health_events)
 
+    # 1.5 情感节点：提取并注入
+    from app.memory.store import memory as mem_store
+    emotional_context = ""
+    if profile and hasattr(profile, 'user_id'):
+        extracted = _extract_emotional_node(user_message)
+        if extracted:
+            emotion, description = extracted
+            mem_store.add_emotional_node(profile.user_id, description, emotion)
+        emotional_context = mem_store.build_emotional_context(profile.user_id)
+
+    full_memory = ""
+    if memory_text:
+        full_memory = memory_text
+    if emotional_context:
+        full_memory = f"{emotional_context}\n\n{full_memory}" if full_memory else emotional_context
+
     # 2. 流式路由到对应引擎
     if intent == Intent.HEALTH:
         from app.engines.health.engine import health_chat_stream
@@ -364,7 +433,7 @@ async def orchestrate_stream(
             user_id=user_id,
             history=history,
             health_snapshot=health_snapshot,
-            memory_text=memory_text,
+            memory_text=full_memory,
         ):
             yield chunk
 
@@ -380,7 +449,7 @@ async def orchestrate_stream(
             user_id=user_id,
             history=history,
             healing_snapshot=healing_snapshot,
-            memory_text=memory_text,
+            memory_text=full_memory,
         ):
             yield chunk
 
@@ -396,7 +465,7 @@ async def orchestrate_stream(
             user_id=user_id,
             history=history,
             product_snapshot=product_snapshot,
-            memory_text=memory_text,
+            memory_text=full_memory,
         ):
             yield chunk
 
@@ -414,6 +483,6 @@ async def orchestrate_stream(
             history=history,
             healing_snapshot=light_snapshot,
             light_mode=True,
-            memory_text=memory_text,
+            memory_text=full_memory,
         ):
             yield chunk
